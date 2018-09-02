@@ -9,9 +9,12 @@ A simple databaseless polling app for Slack
 5. You're done!
 
 ## How to Use
+```
 /inorout Question
 :emoji: Answer
-:emoji2: Answer2
-etc.
+:emoji2: Answer 2
+...
+:emojin: Answer n
+```
 
 Emojis are optional but always fun :)
