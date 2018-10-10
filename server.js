@@ -31,12 +31,14 @@ slackInteractions.action({callbackId: 'answer', type: 'button'}, (payload,respon
     var clickedButton = payload.original_message.attachments[0].actions[(payload.actions[0].value.split(',')[0] - 1)];
 
     // This ensures that the user has only voted on one of the options.
-    for(let i = 0; i < payload.original_message.attachments[0].actions.length; i++){
-        let currentAction = payload.original_message.attachments[0].actions[i];
-        let currentValue = new Set(currentAction.value.split(','));
-        if(currentValue.has(payload.user.id)){
-            currentValue.delete(payload.user.id);
-            currentAction.value = Array.from(currentValue).join(',');
+    if(!payload.original_message.text.includes("(Multiple Answers Allowed)")){
+        for(let i = 0; i < payload.original_message.attachments[0].actions.length; i++){
+            let currentAction = payload.original_message.attachments[0].actions[i];
+            let currentValue = new Set(currentAction.value.split(','));
+            if(currentValue.has(payload.user.id)){
+                currentValue.delete(payload.user.id);
+                currentAction.value = Array.from(currentValue).join(',');
+            }
         }
     }
 
@@ -138,6 +140,13 @@ function slackSlashCommands(req,res,next){
         if(req.body.command === '/inorout'){
             var pollParameters = req.body.text.split('\n');
             var slackMessage = smb().responseType('in_channel');
+            if (isMultipleFirstWord(pollParameters[0])){
+                let titleArray = pollParameters[0].split(" ");
+                titleArray.splice(0, 1);
+                pollParameters[0] = titleArray.join(" ");
+                // I'm unsure if I like the newline or not
+                pollParameters[0] = pollParameters[0] + "(Multiple Answers Allowed)";
+            }
             var attachmentArray = slackMessage.text(pollParameters[0]).attachment().callbackId('answer')
             for(var i = 1; i < pollParameters.length; i++){
                 attachmentArray.button().name('answer').text(pollParameters[i]).type('button').value(i).end()
@@ -164,4 +173,13 @@ function slackSlashCommands(req,res,next){
 // Removes the whitespace from the end of strings
 function strip(str) {
     return str.replace(/^\s+|\s+$/g, '');
+}
+
+function isMultipleFirstWord(title){
+    let titleWords = title.split(" ");
+    if (titleWords[0].toUpperCase() === "MULTIPLE"){
+        return true;
+    }else{
+        return false;
+    }
 }
