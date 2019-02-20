@@ -60,7 +60,6 @@ slackInteractions.action({callbackId: 'answer', type: 'button'}, (payload,respon
 });
 
 slackInteractions.action({callbackId: 'options', type: 'button'}, (payload,respond) =>{
-    console.log(payload);
     if (payload.actions[0].name == 'deletepoll')
     {
         if (payload.user.id == payload.actions[0].value){
@@ -107,15 +106,17 @@ function generateResultString(payload){
         if(numberOfVotes == 0){
             continue;
         }
-        resultString += currentAction.text + " (" + numberOfVotes + ")" + " =>";
-        for (let x = 1; x < currentValue.length; x++){
-            resultString += " " + "<@" + currentValue[x] + ">,";
+        resultString += currentAction.text + " (" + numberOfVotes + ")";
+        if(!payload.original_message.text.includes("Anonymous")){
+            resultString += " =>";
+            for (let x = 1; x < currentValue.length; x++){
+                resultString += " " + "<@" + currentValue[x] + ">,";
+            }
+            
+            if(resultString.slice(-1) == ','){
+                resultString = resultString.slice(0,-1);
+            }
         }
-        
-        if(resultString.slice(-1) == ','){
-            resultString = resultString.slice(0,-1);
-        }
-    
         resultString += "\n";
     }
     resultString = strip(resultString);
@@ -138,14 +139,29 @@ function slackSlashCommands(req,res,next){
     if(req.body.token == slackVerificationToken){
 
         if(req.body.command === '/inorout'){
+            // Who made the post
+            let author = "<@" + req.body.user_id + ">";
             var pollParameters = req.body.text.split('\n');
             var slackMessage = smb().responseType('in_channel');
+            let unmodified_title = pollParameters[0];
+            // Command parsing
             if (isMultipleFirstWord(pollParameters[0])){
                 let titleArray = pollParameters[0].split(" ");
                 titleArray.splice(0, 1);
                 pollParameters[0] = titleArray.join(" ");
                 // I'm unsure if I like the newline or not
                 pollParameters[0] = pollParameters[0] + "(Multiple Answers Allowed)";
+            // Allows for anyonmous responses
+            }else if(isAnonFirstWord(pollParameters[0])){
+                let titleArray = pollParameters[0].split(" ");
+                titleArray.splice(0, 1);
+                pollParameters[0] = titleArray.join(" ");
+                // I'm unsure if I like the newline or not
+                pollParameters[0] = pollParameters[0] + "(Anonymous)";
+            }
+            // If it is anonymous poll we don't want to post who asked it
+            if(!isAnonFirstWord(unmodified_title)){
+                pollParameters[0] = author + " asked:\n" + pollParameters[0];
             }
             var attachmentArray = slackMessage.text(pollParameters[0]).attachment().callbackId('answer')
             for(var i = 1; i < pollParameters.length; i++){
@@ -178,6 +194,14 @@ function strip(str) {
 function isMultipleFirstWord(title){
     let titleWords = title.split(" ");
     if (titleWords[0].toUpperCase() === "MULTIPLE"){
+        return true;
+    }else{
+        return false;
+    }
+}
+function isAnonFirstWord(title){
+    let titleWords = title.split(" ");
+    if (titleWords[0].toUpperCase() === "ANON" || titleWords[0].toUpperCase === "ANONYMOUS"){
         return true;
     }else{
         return false;
