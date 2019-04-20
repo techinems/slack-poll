@@ -90,7 +90,7 @@ slackInteractions.action({callbackId: 'options', type: 'button'}, (payload,respo
         return currentMessage.json();
     }else if (payload.actions[0].name == 'movepoll'){
         var currentMessage = smb(payload.original_message);
-        web.chat.delete({channel: payload.channel.id, ts: payload.message_ts});
+        web.chat.delete({channel: payload.channel.id, ts: payload.message_ts}).catch((err) => console.error(err));
         web.chat.postMessage({channel:payload.channel.id, text: payload.original_message.text, attachments: payload.original_message.attachments});
     }
 });
@@ -172,12 +172,14 @@ function slackSlashCommands(req,res,next){
             optionsButtons.button().text("Move to Bottom").name('movepoll').type('button').end();
             optionsButtons.button().text("Delete Poll").name('deletepoll').type('button').style('danger').value(req.body.user_id).end();
             slackMessage.json();
-            request({
-                url: req.body.response_url,
-                method: "POST",
-                json: true,
-                body: slackMessage
-            });
+            web.chat.postMessage({channel:req.body.channel_id, text: slackMessage.data.text, attachments: slackMessage.data.attachments, as_user: false})
+            .catch((err) => console.log(err));
+            // request({
+            //     url: req.body.response_url,
+            //     method: "POST",
+            //     json: true,
+            //     body: slackMessage
+            // });
             res.send();
         }
     }else{
