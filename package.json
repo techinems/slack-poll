@@ -1,20 +1,31 @@
 {
-  "name": "slack-app",
-  "version": "1.0.0",
-  "description": "",
+  "name": "slack-poll",
+  "version": "2.0.0",
+  "description": "Datbaseless Slack Polling",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node out/server.js",
+    "watch": "tsc --watch"
   },
-  "author": "Logan Ramos",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rpiambulance/slack-poll"
+  },
+  "author": "RPI Ambulance",
   "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/rpiambulance/slack-poll/issues"
+  },
+  "homepage": "https://github.com/rpiambulance/slack-poll#readme",
   "dependencies": {
-    "@slack/client": "^4.3.1",
-    "@slack/interactive-messages": "^0.4.0",
-    "body-parser": "^1.18.3",
-    "dotenv": "^6.0.0",
-    "express": "^4.16.3",
-    "request": "^2.87.0",
-    "slack-message-builder": "^1.2.1"
+    "body-parser": "^1.19.0",
+    "dotenv": "^8.1.0",
+    "express": "^4.17.1",
+    "qs": "^6.8.0"
+  },
+  "devDependencies": {
+    "@types/dotenv": "^6.1.1",
+    "@types/express": "^4.17.1",
+    "@types/qs": "^6.5.3"
   }
 }
