@@ -1,0 +1,170 @@
+[
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "What can you bring for Thanksgiving dinner?"
+      }
+    },
+    {
+      "type": "context",
+      "elements": [
+        {
+          "type": "mrkdwn",
+          "text": "Asked by *@Yasee:b:*"
+        }
+      ]
+    },
+    {
+      "type": "actions",
+      "elements": [
+        {
+          "type": "button",
+          "text": {
+            "type": "plain_text",
+            "text": ":potato: Mashed potatoes",
+            "emoji": true
+          },
+          "value": "click_me_123"
+        },
+        {
+          "type": "button",
+          "text": {
+            "type": "plain_text",
+            "text": ":canned_food: Cranberry sauce",
+            "emoji": true
+          },
+          "value": "click_me_123"
+        },
+        {
+          "type": "button",
+          "text": {
+            "type": "plain_text",
+            "text": ":bread: Garlic bread",
+            "emoji": true
+          },
+          "value": "click_me_123"
+        },
+        {
+          "type": "button",
+          "text": {
+            "type": "plain_text",
+            "text": ":lollipop: Dessert",
+            "emoji": true
+          },
+          "value": "click_me_123"
+        },
+        {
+          "type": "button",
+          "text": {
+            "type": "plain_text",
+            "text": "Another thing",
+            "emoji": true
+          },
+          "value": "click_me_123"
+        }
+      ]
+    },
+    {
+      "type": "actions",
+      "elements": [
+        {
+          "type": "button",
+          "text": {
+            "type": "plain_text",
+            "text": "...and another",
+            "emoji": true
+          },
+          "value": "click_me_123"
+        },
+        {
+          "type": "button",
+          "text": {
+            "type": "plain_text",
+            "text": "...and another another",
+            "emoji": true
+          },
+          "value": "click_me_123"
+        },
+        {
+          "type": "button",
+          "text": {
+            "type": "plain_text",
+            "text": ":question: Something else (thread below)",
+            "emoji": true
+          },
+          "value": "click_me_123"
+        }
+      ]
+    },
+    {
+      "type": "actions",
+      "elements": [
+        {
+          "type": "static_select",
+          "placeholder": {
+            "type": "plain_text",
+            "text": "Poll options",
+            "emoji": true
+          },
+          "options": [
+            {
+              "text": {
+                "type": "plain_text",
+                "text": "Reset your vote",
+                "emoji": true
+              },
+              "value": "reset"
+            },
+            {
+              "text": {
+                "type": "plain_text",
+                "text": "Move to bottom",
+                "emoji": true
+              },
+              "value": "bottom"
+            },
+            {
+              "text": {
+                "type": "plain_text",
+                "text": "Delete poll",
+                "emoji": true
+              },
+              "value": "delete"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "divider"
+    },
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "*2* :potato: Mashed potatoes » @Dan, @Logan"
+      }
+    },
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "*1* :canned_food: Cranberry sauce » @Iris"
+      }
+    },
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "*1* :bread: Garlic bread » @MC"
+      }
+    },
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "*3* :lollipop: Dessert » @Nathan, @Sarah, @Joie"
+      }
+    }
+]
