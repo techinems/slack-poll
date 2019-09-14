@@ -25,7 +25,7 @@ export class Poll {
                 actionBlocks.push(newActionBlock);
                 actionBlockCount++;
             }
-            const button: Button = { type: 'button', action_id: 'answer', text: { type: 'plain_text', text: parameters[i], emoji: true } };
+            const button: Button = { type: 'button', text: { type: 'plain_text', text: parameters[i], emoji: true } };
             actionBlocks[actionBlockCount].elements.push(button);
         }
         // The various poll options
@@ -65,7 +65,7 @@ export class Poll {
         };
         actionBlockCount++;
         actionBlocks.push({ type: 'actions', elements: [selection] });
-        this.message.concat(actionBlocks);
+        this.message = this.message.concat(actionBlocks);
         // Add a divider in between so later we can put the messages
         this.message.push({ type: 'divider' });
     }

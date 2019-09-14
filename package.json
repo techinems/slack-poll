@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node out/server.js",
-    "watch": "tsc --watch"
+    "watch": "tsc --watch",
+    "compile": "tsc"
   },
   "repository": {
     "type": "git",

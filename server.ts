@@ -26,15 +26,22 @@ const webclient = new WebClient(slackAccessToken);
 
 // Ensure messages come from slack
 const slackInteractions = createMessageAdapter(slackSigningSecret);
-app.use('/slack/commands', slackInteractions.requestListener());
+app.use('/slack/commands', slackInteractions.expressMiddleware());
 
 app.use(urlencoded({ extended: true }));
 
-app.post('/slack/commands', (req, res) => {
+app.post('/slack/commands', async (req, res) => {
     if (req.body.command === "/inorout") {
         // Create a new poll passing in the poll author and the other params
         const poll = new Poll(`<@${req.body.user_id}>`, req.body.text.split('\n'));
-        webclient.chat.postMessage({ channel: req.body.channel_id, text: 'Unable to render block content.', as_user: false, blocks: poll.getBlocks() })
+        try {
+            await webclient.chat.postMessage({ channel: req.body.channel_id, text: 'Unable to render block content.', as_user: false, blocks: poll.getBlocks() });
+            res.send();
+        } catch (err) {
+            console.error(err);
+            res.send('Something went wrong');
+        }
+        
     } else {
         console.error(`Unregistered command ${req.body.command}`);
         res.send('Unhandled command');
