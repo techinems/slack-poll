@@ -60,6 +60,15 @@ slackInteractions.action({ type: 'static_select' }, async (payload, res) => {
                 await webclient.chat.postEphemeral({ channel: payload.channel.id, text: "Only the poll author may move the poll.", user: payload.user.id });
             }
             break;
+        case "lock":
+            payload.message.text = "Poll locked!";
+            if (`<@${payload.user.id}>` === poll.getAuthor()) {
+                poll.lockPoll();
+                payload.message.blocks = poll.getBlocks();
+            } else {
+                await webclient.chat.postEphemeral({ channel: payload.channel.id, text: "Only the poll author may lock the poll.", user: payload.user.id });
+            }
+            break;
         case "delete":
             if (`<@${payload.user.id}>` === poll.getAuthor()) {
                 payload.message.text = "This poll has been deleted";

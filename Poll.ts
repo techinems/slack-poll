@@ -49,6 +49,14 @@ export class Poll {
                 {
                     text: {
                         type: 'plain_text',
+                        text: ':lock: Lock poll',
+                        emoji: true
+                    },
+                    value: 'lock'
+                },
+                {
+                    text: {
+                        type: 'plain_text',
                         text: 'Move to bottom',
                         emoji: true
                     },
@@ -128,6 +136,10 @@ export class Poll {
             }
         }
         this.generateVoteResults();
+    }
+
+    public lockPoll() {
+        this.message = this.message.slice(0, 2).concat(this.message.slice(this.getDividerId() - 1));
     }
 
     private generateVoteResults() {
