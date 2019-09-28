@@ -1,6 +1,6 @@
 import express from 'express';
 import * as dotenv from 'dotenv';
-import { urlencoded } from 'body-parser';
+import { urlencoded, text } from 'body-parser';
 import { createMessageAdapter } from '@slack/interactive-messages';
 import { WebClient } from '@slack/web-api';
 import { Poll } from './Poll';
@@ -30,7 +30,7 @@ app.use('/slack/actions', slackInteractions.expressMiddleware());
 
 app.use(urlencoded({ extended: true }));
 
-slackInteractions.action({type: 'button'}, (payload, res) => {
+slackInteractions.action({ type: 'button' }, (payload, res) => {
     const poll = new Poll(payload.message.blocks);
     poll.vote(payload.actions[0].text.text, payload.user.id);
     payload.message.blocks = poll.getBlocks();
@@ -38,7 +38,39 @@ slackInteractions.action({type: 'button'}, (payload, res) => {
     // We respond with the new payload
     res(payload.message);
     // In case it is being slow users will see this message
-    return({ text: 'Vote processing!' });
+    return ({ text: 'Vote processing!' });
+});
+
+slackInteractions.action({ type: 'static_select' }, async (payload, res) => {
+    const selectOption = payload.actions[0].selected_option.value;
+    const poll = new Poll(payload.message.blocks);
+    switch (selectOption) {
+        case "reset":
+            payload.message.text = "Vote reset!";
+            poll.resetVote(payload.user.id);
+            payload.message.blocks = poll.getBlocks();
+            break;
+        case "bottom":
+            payload.message.text = "Poll moved!";
+            payload.message.blocks = poll.getBlocks();
+            if (`<@${payload.user.id}>` === poll.getAuthor()) {
+                await webclient.chat.delete({ channel: payload.channel.id, ts: payload.message.ts }).catch((err: any) => console.error(err));
+                await webclient.chat.postMessage({ channel: payload.channel.id, text: payload.message.text, as_user: false, blocks: payload.message.blocks });
+            } else {
+                await webclient.chat.postEphemeral({ channel: payload.channel.id, text: "Only the poll author may move the poll.", user: payload.user.id });
+            }
+            break;
+        case "delete":
+            if (`<@${payload.user.id}>` === poll.getAuthor()) {
+                payload.message.text = "This poll has been deleted";
+                payload.message.blocks = undefined;
+            } else {
+                await webclient.chat.postEphemeral({ channel: payload.channel.id, text: "Only the poll author may delete the poll.", user: payload.user.id });
+            }
+            break;
+    }
+    res(payload.message);
+    return ({ text: 'Processing request!' });
 });
 
 app.post('/slack/commands', async (req, res) => {
@@ -59,6 +91,6 @@ app.post('/slack/commands', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`In Or Out Server Running on ${PORT}`);
+    console.log(`In Or Out server running on ${PORT}`);
 });
 

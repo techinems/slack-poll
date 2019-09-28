@@ -1,4 +1,4 @@
-import { KnownBlock, SectionBlock, ContextBlock, Button, ActionsBlock, StaticSelect } from "@slack/types";
+import { KnownBlock, SectionBlock, ContextBlock, Button, ActionsBlock, StaticSelect, PlainTextElement } from "@slack/types";
 
 export class Poll {
 
@@ -82,6 +82,31 @@ export class Poll {
         return this.message;
     }
 
+    public getAuthor() {
+        return ((this.message[1] as ContextBlock).elements[0] as PlainTextElement).text.replace("Asked by: ", "");
+    }
+
+    public resetVote(userId: string) {
+        for (let i = 2; i < this.message.length; i++) {
+            if (this.message[i].type === "actions") {
+                // Since we know it's an action block as we just checked its type we can do this casting
+                const currentBlock = this.message[i] as ActionsBlock;
+                for (let j = 0; j < currentBlock.elements.length; j++) {
+                    if (currentBlock.elements[j].type === "button") {
+                        const button = currentBlock.elements[j] as Button;
+                        const votes = button.value!.split(',');
+                        const userIdIndex = votes.indexOf(userId);
+                        if (userIdIndex > -1) {
+                            votes.splice(userIdIndex, 1);
+                        }
+                        (currentBlock.elements[j] as Button).value = votes.join(',');
+                    }
+                }
+            }
+        }
+        this.generateVoteResults();
+    }
+
     public vote(buttonText: string, userId: string) {
         for (let i = 2; i < this.message.length; i++) {
             if (this.message[i].type === "actions") {
@@ -126,14 +151,11 @@ export class Poll {
             // Don't bother with empty votes
             if (users.length === 0) continue;
             users = users.map((k: string) => `<@${k}>`);
-            console.log(users);
             const sectionText = `*${users.length}* ${key} » ` + users.join(',');
             const sectionBlock: SectionBlock = { type: "section", text: { type: "mrkdwn", text: sectionText } }
             responseSections.push(sectionBlock);
         }
         // We throw out the old vote response and construct them again 
-        console.log(this.message);
-        console.log(dividerId);
         this.message = this.message.slice(0, dividerId + 1);
         this.message = this.message.concat(responseSections);
     }
