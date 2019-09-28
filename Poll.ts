@@ -1,9 +1,9 @@
-import { KnownBlock, SectionBlock, ContextBlock, KnownAction, Button, ActionsBlock, StaticSelect } from "@slack/types";
+import { KnownBlock, SectionBlock, ContextBlock, Button, ActionsBlock, StaticSelect } from "@slack/types";
 
 export class Poll {
 
-    private message: KnownBlock[] = [];
-    constructor(author: string, parameters: string[]) {
+    static slashCreate(author: string, parameters: string[]) {
+        let message: KnownBlock[] = [];
         const titleBlock: SectionBlock = {
             type: 'section',
             text: { type: 'mrkdwn', text: parameters[0] }
@@ -14,8 +14,8 @@ export class Poll {
                 { type: 'mrkdwn', text: `Asked by: ${author}` }
             ]
         }
-        this.message.push(titleBlock);
-        this.message.push(authorBlock);
+        message.push(titleBlock);
+        message.push(authorBlock);
         const actionBlocks: ActionsBlock[] = [{ type: 'actions', elements: [] }];
         let actionBlockCount: number = 0;
         // Construct all the buttons
@@ -25,7 +25,8 @@ export class Poll {
                 actionBlocks.push(newActionBlock);
                 actionBlockCount++;
             }
-            const button: Button = { type: 'button', text: { type: 'plain_text', text: parameters[i], emoji: true } };
+            // We set value to empty string so that it is always defined
+            const button: Button = { type: 'button', value: " ", text: { type: 'plain_text', text: parameters[i], emoji: true } };
             actionBlocks[actionBlockCount].elements.push(button);
         }
         // The various poll options
@@ -65,12 +66,84 @@ export class Poll {
         };
         actionBlockCount++;
         actionBlocks.push({ type: 'actions', elements: [selection] });
-        this.message = this.message.concat(actionBlocks);
+        message = message.concat(actionBlocks);
         // Add a divider in between so later we can put the messages
-        this.message.push({ type: 'divider' });
+        message.push({ type: 'divider' });
+        // Create the poll based on the intial message
+        return new Poll(message);
+    }
+
+    private message: KnownBlock[] = [];
+    constructor(message: KnownBlock[]) {
+        this.message = message;
     }
 
     public getBlocks() {
         return this.message;
+    }
+
+    public vote(buttonText: string, userId: string) {
+        for (let i = 2; i < this.message.length; i++) {
+            if (this.message[i].type === "actions") {
+                // Since we know it's an action block as we just checked its type we can do this casting
+                const currentBlock = this.message[i] as ActionsBlock;
+                for (let j = 0; j < currentBlock.elements.length; j++) {
+                    if (currentBlock.elements[j].type === "button") {
+                        const button = currentBlock.elements[j] as Button;
+                        const votes = button.value!.split(',');
+                        const userIdIndex = votes.indexOf(userId);
+                        if (userIdIndex > -1 && button.text.text !== buttonText) {
+                            votes.splice(userIdIndex, 1);
+                        } else if (button.text.text === buttonText && userIdIndex === -1) {
+                            votes.push(userId);
+                        }
+                        (currentBlock.elements[j] as Button).value = votes.join(',');
+                    }
+                }
+            }
+        }
+        this.generateVoteResults();
+    }
+
+    private generateVoteResults() {
+        const dividerId = this.getDividerId();
+        const votes: any = {};
+        for (let i = 2; i < dividerId; i++) {
+            if (this.message[i].type === "actions") {
+                const currentBlock = this.message[i] as ActionsBlock;
+                for (let j = 0; j < currentBlock.elements.length; j++) {
+                    if (currentBlock.elements[j].type === "button") {
+                        const currentButton = currentBlock.elements[j] as Button;
+                        votes[currentButton.text.text] = currentButton.value;
+                    }
+                }
+            }
+        }
+        const responseSections: SectionBlock[] = [];
+        for (const key in votes) {
+            let users: string[] = votes[key].split(',');
+            users.splice(0, 1);
+            // Don't bother with empty votes
+            if (users.length === 0) continue;
+            users = users.map((k: string) => `<@${k}>`);
+            console.log(users);
+            const sectionText = `*${users.length}* ${key} » ` + users.join(',');
+            const sectionBlock: SectionBlock = { type: "section", text: { type: "mrkdwn", text: sectionText } }
+            responseSections.push(sectionBlock);
+        }
+        // We throw out the old vote response and construct them again 
+        console.log(this.message);
+        console.log(dividerId);
+        this.message = this.message.slice(0, dividerId + 1);
+        this.message = this.message.concat(responseSections);
+    }
+
+    private getDividerId(): number {
+        for (let i = this.message.length - 1; i >= 0; i--) {
+            if (this.message[i].type === "divider") {
+                return i;
+            }
+        }
+        return -1;
     }
 }

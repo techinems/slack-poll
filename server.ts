@@ -26,22 +26,32 @@ const webclient = new WebClient(slackAccessToken);
 
 // Ensure messages come from slack
 const slackInteractions = createMessageAdapter(slackSigningSecret);
-app.use('/slack/commands', slackInteractions.expressMiddleware());
+app.use('/slack/actions', slackInteractions.expressMiddleware());
 
 app.use(urlencoded({ extended: true }));
+
+slackInteractions.action({type: 'button'}, (payload, res) => {
+    const poll = new Poll(payload.message.blocks);
+    poll.vote(payload.actions[0].text.text, payload.user.id);
+    payload.message.blocks = poll.getBlocks();
+    payload.message.text = "Vote changed!";
+    // We respond with the new payload
+    res(payload.message);
+    // In case it is being slow users will see this message
+    return({ text: 'Vote processing!' });
+});
 
 app.post('/slack/commands', async (req, res) => {
     if (req.body.command === "/inorout") {
         // Create a new poll passing in the poll author and the other params
-        const poll = new Poll(`<@${req.body.user_id}>`, req.body.text.split('\n'));
+        const poll = Poll.slashCreate(`<@${req.body.user_id}>`, req.body.text.split('\n'));
         try {
-            await webclient.chat.postMessage({ channel: req.body.channel_id, text: 'Unable to render block content.', as_user: false, blocks: poll.getBlocks() });
+            await webclient.chat.postMessage({ channel: req.body.channel_id, text: 'A poll has been posted!', as_user: false, blocks: poll.getBlocks() });
             res.send();
         } catch (err) {
             console.error(err);
             res.send('Something went wrong');
         }
-        
     } else {
         console.error(`Unregistered command ${req.body.command}`);
         res.send('Unhandled command');
