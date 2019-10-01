@@ -47,8 +47,12 @@ slackInteractions.action({ type: "static_select" }, async (payload, res) => {
     switch (selectOption) {
         case "reset":
             payload.message.text = "Vote reset!";
-            poll.resetVote(payload.user.id);
-            payload.message.blocks = poll.getBlocks();
+            if (poll.getLockedStatus()) {
+                await webclient.chat.postEphemeral({ channel: payload.channel.id, text: "You cannot reset your vote after the poll has been locked.", user: payload.user.id });
+            } else {
+                poll.resetVote(payload.user.id);
+                payload.message.blocks = poll.getBlocks();
+            }
             break;
         case "bottom":
             payload.message.text = "Poll moved!";

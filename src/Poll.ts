@@ -118,11 +118,14 @@ export class Poll {
     private message: KnownBlock[] = [];
     private multiple = false;
     private anonymous = false;
+    private isLocked = false;
     constructor(message: KnownBlock[]) {
         this.message = message;
         // Since its databaseless the way we know if it is anonymous or multiple is by parsing the title
         this.multiple = ((this.message[0] as SectionBlock).text as MrkdwnElement).text.includes("(Multiple Answers)");
         this.anonymous = ((this.message[0] as SectionBlock).text as MrkdwnElement).text.includes("(Anonymous)");
+        // If there's no buttons then the poll is locked
+        this.isLocked = this.message[3].type === "divider";
     }
 
     public getBlocks(): KnownBlock[] {
@@ -131,6 +134,10 @@ export class Poll {
 
     public getAuthor(): string {
         return ((this.message[1] as ContextBlock).elements[0] as PlainTextElement).text.replace("Asked by: ", "");
+    }
+
+    public getLockedStatus(): boolean {
+        return this.isLocked;
     }
 
     public resetVote(userId: string): void {
@@ -145,10 +152,10 @@ export class Poll {
                         const userIdIndex = votes.indexOf(userId);
                         if (userIdIndex > -1) {
                             votes.splice(userIdIndex, 1);
+                            (currentBlock.elements[j] as Button).value = votes.join(",");
                             // Optimization why search the rest if we know they only have one vote
                             if (!this.multiple) break;
                         }
-                        (currentBlock.elements[j] as Button).value = votes.join(",");
                     }
                 }
             }
@@ -181,7 +188,7 @@ export class Poll {
 
     public lockPoll(): void {
         this.message = this.message.slice(0, 2).concat(this.message.slice(this.getDividerId() - 1));
-        ((this.message[2] as ActionsBlock).elements[0] as StaticSelect).options!.splice(0, 2);
+        // ((this.message[2] as ActionsBlock).elements[0] as StaticSelect).options!.splice(0, 2);
     }
 
     // Creates the message that will be sent to the poll author with the final results
