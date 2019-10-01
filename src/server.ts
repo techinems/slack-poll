@@ -1,9 +1,9 @@
-import express from 'express';
-import * as dotenv from 'dotenv';
-import { urlencoded, text } from 'body-parser';
-import { createMessageAdapter } from '@slack/interactive-messages';
-import { WebClient } from '@slack/web-api';
-import { Poll } from './Poll';
+import express from "express";
+import * as dotenv from "dotenv";
+import { urlencoded } from "body-parser";
+import { createMessageAdapter } from "@slack/interactive-messages";
+import { WebClient } from "@slack/web-api";
+import { Poll } from "./Poll";
 
 // Load Environment variables
 dotenv.config();
@@ -26,11 +26,11 @@ const webclient = new WebClient(slackAccessToken);
 
 // Ensure messages come from slack
 const slackInteractions = createMessageAdapter(slackSigningSecret);
-app.use('/slack/actions', slackInteractions.expressMiddleware());
+app.use("/slack/actions", slackInteractions.expressMiddleware());
 
 app.use(urlencoded({ extended: true }));
 
-slackInteractions.action({ type: 'button' }, (payload, res) => {
+slackInteractions.action({ type: "button" }, (payload, res) => {
     const poll = new Poll(payload.message.blocks);
     poll.vote(payload.actions[0].text.text, payload.user.id);
     payload.message.blocks = poll.getBlocks();
@@ -38,10 +38,10 @@ slackInteractions.action({ type: 'button' }, (payload, res) => {
     // We respond with the new payload
     res(payload.message);
     // In case it is being slow users will see this message
-    return ({ text: 'Vote processing!' });
+    return ({ text: "Vote processing!" });
 });
 
-slackInteractions.action({ type: 'static_select' }, async (payload, res) => {
+slackInteractions.action({ type: "static_select" }, async (payload, res) => {
     const selectOption = payload.actions[0].selected_option.value;
     const poll = new Poll(payload.message.blocks);
     switch (selectOption) {
@@ -85,30 +85,29 @@ slackInteractions.action({ type: 'static_select' }, async (payload, res) => {
             if (`<@${payload.user.id}>` === poll.getAuthor()) {
                 const dm: any = await webclient.conversations.open({ users: payload.user.id });
                 await webclient.chat.postMessage({ channel: dm.channel.id, text: `${payload.message.blocks[0].text.text} *RESULTS (Confidential do not distribute)*`, blocks: poll.collectResults(), user: payload.user.id }).catch((err: any) => console.error(err));
-                payload.message.blocks = poll.getBlocks();
             } else {
                 await webclient.chat.postEphemeral({ channel: payload.channel.id, text: "Only the poll author may collect the results.", user: payload.user.id });
             }
             break;
     }
     res(payload.message);
-    return ({ text: 'Processing request!' });
+    return ({ text: "Processing request!" });
 });
 
-app.post('/slack/commands', async (req, res) => {
+app.post("/slack/commands", async (req, res) => {
     if (req.body.command === "/inorout") {
         // Create a new poll passing in the poll author and the other params
-        const poll = Poll.slashCreate(`<@${req.body.user_id}>`, req.body.text.split('\n'));
+        const poll = Poll.slashCreate(`<@${req.body.user_id}>`, req.body.text.split("\n"));
         try {
-            await webclient.chat.postMessage({ channel: req.body.channel_id, text: 'A poll has been posted!', as_user: false, blocks: poll.getBlocks() });
+            await webclient.chat.postMessage({ channel: req.body.channel_id, text: "A poll has been posted!", as_user: false, blocks: poll.getBlocks() });
             res.send();
         } catch (err) {
             console.error(err);
-            res.send('Something went wrong');
+            res.send("Something went wrong");
         }
     } else {
         console.error(`Unregistered command ${req.body.command}`);
-        res.send('Unhandled command');
+        res.send("Unhandled command");
     }
 });
 
