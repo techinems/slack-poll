@@ -55,7 +55,10 @@ slackInteractions.action({ type: 'static_select' }, async (payload, res) => {
             payload.message.blocks = poll.getBlocks();
             if (`<@${payload.user.id}>` === poll.getAuthor()) {
                 await webclient.chat.delete({ channel: payload.channel.id, ts: payload.message.ts }).catch((err: any) => console.error(err));
-                await webclient.chat.postMessage({ channel: payload.channel.id, text: payload.message.text, as_user: false, blocks: payload.message.blocks });
+                // Must be artificially slowed down to prevent the poll from glitching out on Slack's end
+                setTimeout(async () => {
+                    await webclient.chat.postMessage({ channel: payload.channel.id, text: payload.message.text, as_user: false, blocks: payload.message.blocks });
+                }, 300);
             } else {
                 await webclient.chat.postEphemeral({ channel: payload.channel.id, text: "Only the poll author may move the poll.", user: payload.user.id });
             }
@@ -75,6 +78,16 @@ slackInteractions.action({ type: 'static_select' }, async (payload, res) => {
                 payload.message.blocks = undefined;
             } else {
                 await webclient.chat.postEphemeral({ channel: payload.channel.id, text: "Only the poll author may delete the poll.", user: payload.user.id });
+            }
+            break;
+        case "collect":
+            payload.message.text = "Poll results collected!";
+            if (`<@${payload.user.id}>` === poll.getAuthor()) {
+                const dm: any = await webclient.conversations.open({ users: payload.user.id });
+                await webclient.chat.postMessage({ channel: dm.channel.id, text: `${payload.message.blocks[0].text.text} *RESULTS (Confidential do not distribute)*`, blocks: poll.collectResults(), user: payload.user.id }).catch((err: any) => console.error(err));
+                payload.message.blocks = poll.getBlocks();
+            } else {
+                await webclient.chat.postEphemeral({ channel: payload.channel.id, text: "Only the poll author may collect the results.", user: payload.user.id });
             }
             break;
     }

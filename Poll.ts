@@ -1,13 +1,29 @@
-import { KnownBlock, SectionBlock, ContextBlock, Button, ActionsBlock, StaticSelect, PlainTextElement } from "@slack/types";
+import { KnownBlock, SectionBlock, ContextBlock, Button, ActionsBlock, StaticSelect, PlainTextElement, MrkdwnElement } from "@slack/types";
 
 export class Poll {
 
     static slashCreate(author: string, parameters: string[]) {
         let message: KnownBlock[] = [];
-        const titleBlock: SectionBlock = {
-            type: 'section',
-            text: { type: 'mrkdwn', text: parameters[0] }
-        };
+        const optionArray = parameters[0].split(' ');
+        // That way I don't have to worry about the difference in comparisons if there is one or two options
+        if (optionArray.length === 1) optionArray.push(' ');
+        let titleBlock: SectionBlock;
+        if (optionArray[0].toLowerCase() === "multiple" || optionArray[0].toLowerCase() === "anon") {
+            // If options are provided then the first line becomes all the options and the second line is the title
+            let title = parameters[1];
+            title += optionArray[0].toLowerCase() === "multiple" || optionArray[1].toLowerCase() === "multiple" ? " *(Multiple Answers)* " : "";
+            title += optionArray[0].toLowerCase() === "anon" || optionArray[1].toLowerCase() === "anon" ? " *(Anonymous)* " : "";
+            titleBlock = {
+                type: 'section',
+                text: { type: 'mrkdwn', text: title }
+            };
+        } else {
+            titleBlock = {
+                type: 'section',
+                text: { type: 'mrkdwn', text: parameters[0] }
+            };
+        }
+
         const authorBlock: ContextBlock = {
             type: 'context',
             elements: [
@@ -19,12 +35,17 @@ export class Poll {
         const actionBlocks: ActionsBlock[] = [{ type: 'actions', elements: [] }];
         let actionBlockCount: number = 0;
         // Construct all the buttons
-        for (let i = 1; i < parameters.length; i++) {
+        const start = titleBlock.text!.text === parameters[0] ? 1 : 2;
+        for (let i = start; i < parameters.length; i++) {
             if (i % 5 === 0) {
                 const newActionBlock: ActionsBlock = { type: 'actions', elements: [] };
                 actionBlocks.push(newActionBlock);
                 actionBlockCount++;
             }
+            // Remove special characters, should be able to remove this once slack figures itself out
+            parameters[i] = parameters[i].replace('&amp;', '+');
+            parameters[i] = parameters[i].replace('&lt;', 'greater than ');
+            parameters[i] = parameters[i].replace('&gt;', 'less than ');
             // We set value to empty string so that it is always defined
             const button: Button = { type: 'button', value: " ", text: { type: 'plain_text', text: parameters[i], emoji: true } };
             actionBlocks[actionBlockCount].elements.push(button);
@@ -72,6 +93,19 @@ export class Poll {
                 }
             ]
         };
+        // If anonymous we want the author to be able to collect the poll results
+        if (optionArray[0].toLowerCase() === "anon" || optionArray[1].toLowerCase() === "anon") {
+            selection.options!.push(
+                {
+                    text: {
+                        type: 'plain_text',
+                        text: 'Collect Results',
+                        emoji: true
+                    },
+                    value: 'collect'
+                }
+            );
+        }
         actionBlockCount++;
         actionBlocks.push({ type: 'actions', elements: [selection] });
         message = message.concat(actionBlocks);
@@ -82,8 +116,13 @@ export class Poll {
     }
 
     private message: KnownBlock[] = [];
+    private multiple: boolean = false;
+    private anonymous: boolean = false;
     constructor(message: KnownBlock[]) {
         this.message = message;
+        // Since its databaseless the way we know if it is anonymous or multiple is by parsing the title
+        this.multiple = ((this.message[0] as SectionBlock).text as MrkdwnElement).text.includes('(Multiple Answers)');
+        this.anonymous = ((this.message[0] as SectionBlock).text as MrkdwnElement).text.includes('(Anonymous)');
     }
 
     public getBlocks() {
@@ -106,6 +145,8 @@ export class Poll {
                         const userIdIndex = votes.indexOf(userId);
                         if (userIdIndex > -1) {
                             votes.splice(userIdIndex, 1);
+                            // Optimization why search the rest if we know they only have one vote
+                            if (!this.multiple) break;
                         }
                         (currentBlock.elements[j] as Button).value = votes.join(',');
                     }
@@ -125,7 +166,7 @@ export class Poll {
                         const button = currentBlock.elements[j] as Button;
                         const votes = button.value!.split(',');
                         const userIdIndex = votes.indexOf(userId);
-                        if (userIdIndex > -1 && button.text.text !== buttonText) {
+                        if (!this.multiple && userIdIndex > -1 && button.text.text !== buttonText) {
                             votes.splice(userIdIndex, 1);
                         } else if (button.text.text === buttonText && userIdIndex === -1) {
                             votes.push(userId);
@@ -140,9 +181,22 @@ export class Poll {
 
     public lockPoll() {
         this.message = this.message.slice(0, 2).concat(this.message.slice(this.getDividerId() - 1));
+        ((this.message[2] as ActionsBlock).elements[0] as StaticSelect).options!.splice(0, 2);
     }
 
-    private generateVoteResults() {
+    // Creates the message that will be sent to the poll author with the final results
+    public collectResults() {
+        const results = this.resultGeneratorHelper(true);
+        const title = ((this.message[0] as SectionBlock).text as MrkdwnElement).text;
+        const titleBlock: SectionBlock = {
+            type: 'section',
+            text: { type: 'mrkdwn', text: `${title} *RESULTS (Confidential do not distribute)*` }
+        };
+        return [titleBlock].concat(results);
+    }
+
+    // Common code used between the public results generated and the empheral collected results
+    private resultGeneratorHelper(overrideAnon: boolean) {
         const dividerId = this.getDividerId();
         const votes: any = {};
         for (let i = 2; i < dividerId; i++) {
@@ -162,14 +216,24 @@ export class Poll {
             users.splice(0, 1);
             // Don't bother with empty votes
             if (users.length === 0) continue;
-            users = users.map((k: string) => `<@${k}>`);
-            const sectionText = `*${users.length}* ${key} » ` + users.join(',');
+            let sectionText = "";
+            // When anonymous we don't display the user's names
+            if (this.anonymous && !overrideAnon) {
+                sectionText = `*${users.length}* ${key} » ~HIDDEN~`;
+            } else {
+                users = users.map((k: string) => `<@${k}>`);
+                sectionText = `*${users.length}* ${key} » ` + users.join(',');
+            }
             const sectionBlock: SectionBlock = { type: "section", text: { type: "mrkdwn", text: sectionText } }
             responseSections.push(sectionBlock);
         }
+        return responseSections;
+    }
+    private generateVoteResults() {
+        const dividerId = this.getDividerId();
         // We throw out the old vote response and construct them again 
         this.message = this.message.slice(0, dividerId + 1);
-        this.message = this.message.concat(responseSections);
+        this.message = this.message.concat(this.resultGeneratorHelper(false));
     }
 
     private getDividerId(): number {
