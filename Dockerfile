@@ -7,7 +7,7 @@ RUN npm install
 
 COPY src/ ./
 
-RUN npm compile
+RUN npm run compile
 
 EXPOSE 3000
 
