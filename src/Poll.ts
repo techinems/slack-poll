@@ -1,29 +1,46 @@
-import { KnownBlock, SectionBlock, ContextBlock, Button, ActionsBlock, StaticSelect, PlainTextElement, MrkdwnElement } from "@slack/types";
+import { KnownBlock, SectionBlock, ContextBlock, Button, ActionsBlock, StaticSelect, PlainTextElement, MrkdwnElement,
+    Option } from "@slack/types";
 
 export class Poll {
+    private static appendIfMatching(optionArray: string[], keyword: string, appendText): string {
+        return optionArray[0].toLowerCase() === keyword || optionArray[1].toLowerCase() === keyword ? appendText : "";
+    }
+    
+    private getTitleFromMsg(): string {
+        return ((this.message[0] as SectionBlock).text as MrkdwnElement).text;
+    }
+    
+    private checkIfMsgContains(value: string): boolean {
+        return this.getTitleFromMsg().text.includes(value);
+    }
+    
+    private buildSectionBlock(mrkdwnValue: string): SectionBlock {
+        return { type: "section", text: { type: "mrkdwn", text: mrkdwnValue } };
+    }
+    
+    private static buildSelectOption(text: string, value: string): Option {
+        return { text: this.buildTextElem(text), value: value };
+    }
+    
+    private static buildTextElem(text: string): PlainTextElement {
+        return { type: "plain_text", text: text, emoji: true };
+    }
 
     static slashCreate(author: string, parameters: string[]): Poll {
         let message: KnownBlock[] = [];
         const optionArray = parameters[0].split(" ");
         // That way I don"t have to worry about the difference in comparisons if there is one or two options
         if (optionArray.length === 1) optionArray.push(" ");
-        let titleBlock: SectionBlock;
+
+        let mrkdwnValue = parameters[0];
         if (optionArray[0].toLowerCase() === "multiple" || optionArray[0].toLowerCase() === "anon") {
             // If options are provided then the first line becomes all the options and the second line is the title
-            let title = parameters[1];
-            title += optionArray[0].toLowerCase() === "multiple" || optionArray[1].toLowerCase() === "multiple" ? " *(Multiple Answers)* " : "";
-            title += optionArray[0].toLowerCase() === "anon" || optionArray[1].toLowerCase() === "anon" ? " *(Anonymous)* " : "";
-            titleBlock = {
-                type: "section",
-                text: { type: "mrkdwn", text: title }
-            };
-        } else {
-            titleBlock = {
-                type: "section",
-                text: { type: "mrkdwn", text: parameters[0] }
-            };
+            mrkdwnValue = parameters[1];
+            mrkdwnValue += this.appendIfMatching(optionArray, "multiple", " *(Multiple Answers)* ");
+            mrkdwnValue += this.appendIfMatching(optionArray, "anon", " *(Anonymous)* ");
         }
 
+        const titleBlock = this.buildSectionBlock(mrkdwnValue);
         const authorBlock: ContextBlock = {
             type: "context",
             elements: [
@@ -43,68 +60,26 @@ export class Poll {
                 actionBlockCount++;
             }
             // Remove special characters, should be able to remove this once slack figures itself out
-            parameters[i] = parameters[i].replace("&amp;", "+");
-            parameters[i] = parameters[i].replace("&lt;", "greater than ");
-            parameters[i] = parameters[i].replace("&gt;", "less than ");
+            parameters[i] = parameters[i].replace("&amp;", "+").replace("&lt;", "greater than ")
+                                         .replace("&gt;", "less than ");
             // We set value to empty string so that it is always defined
-            const button: Button = { type: "button", value: " ", text: { type: "plain_text", text: parameters[i], emoji: true } };
+            const button: Button = { type: "button", value: " ", text: this.buildTextElem(parameters[i]) };
             actionBlocks[actionBlockCount].elements.push(button);
         }
         // The various poll options
         const selection: StaticSelect = {
             type: "static_select",
-            placeholder: {
-                type: "plain_text",
-                text: "Poll Options",
-                emoji: true
-            },
+            placeholder: this.buildTextElem("Poll Options"),
             options: [
-                {
-                    text: {
-                        type: "plain_text",
-                        text: "Reset your vote",
-                        emoji: true
-                    },
-                    value: "reset"
-                },
-                {
-                    text: {
-                        type: "plain_text",
-                        text: ":lock: Lock poll",
-                        emoji: true
-                    },
-                    value: "lock"
-                },
-                {
-                    text: {
-                        type: "plain_text",
-                        text: "Move to bottom",
-                        emoji: true
-                    },
-                    value: "bottom"
-                },
-                {
-                    text: {
-                        type: "plain_text",
-                        text: "Delete poll",
-                        emoji: true
-                    },
-                    value: "delete"
-                }
+                this.buildSelectOption("Reset your vote", "reset"),
+                this.buildSelectOption(":lock: Lock poll", "lock"),
+                this.buildSelectOption("Move to bottom", "bottom"),
+                this.buildSelectOption("Delete poll", "delete")
             ]
         };
         // If anonymous we want the author to be able to collect the poll results
         if (optionArray[0].toLowerCase() === "anon" || optionArray[1].toLowerCase() === "anon") {
-            selection.options!.push(
-                {
-                    text: {
-                        type: "plain_text",
-                        text: "Collect Results",
-                        emoji: true
-                    },
-                    value: "collect"
-                }
-            );
+            selection.options!.push(this.buildSelectOption("Collect Results", "collect"));
         }
         actionBlockCount++;
         actionBlocks.push({ type: "actions", elements: [selection] });
@@ -122,8 +97,8 @@ export class Poll {
     constructor(message: KnownBlock[]) {
         this.message = message;
         // Since its databaseless the way we know if it is anonymous or multiple is by parsing the title
-        this.multiple = ((this.message[0] as SectionBlock).text as MrkdwnElement).text.includes("(Multiple Answers)");
-        this.anonymous = ((this.message[0] as SectionBlock).text as MrkdwnElement).text.includes("(Anonymous)");
+        this.multiple = this.checkIfMsgContains("(Multiple Answers)");
+        this.anonymous = this.checkIfMsgContains("(Anonymous)");
         // If there's no buttons then the poll is locked
         this.isLocked = this.message[3].type === "divider";
     }
@@ -139,50 +114,35 @@ export class Poll {
     public getLockedStatus(): boolean {
         return this.isLocked;
     }
+    
+    private getVotesAndUserIndex(button: Button, userId: string): {votes: string[]; userIdIndex: number} {
+        const votes = button.value!.split(",");
+        return [votes, votes.indexOf(userId)];
+    }
 
     public resetVote(userId: string): void {
-        for (let i = 2; i < this.message.length; i++) {
-            if (this.message[i].type === "actions") {
-                // Since we know it"s an action block as we just checked its type we can do this casting
-                const currentBlock = this.message[i] as ActionsBlock;
-                for (let j = 0; j < currentBlock.elements.length; j++) {
-                    if (currentBlock.elements[j].type === "button") {
-                        const button = currentBlock.elements[j] as Button;
-                        const votes = button.value!.split(",");
-                        const userIdIndex = votes.indexOf(userId);
-                        if (userIdIndex > -1) {
-                            votes.splice(userIdIndex, 1);
-                            (currentBlock.elements[j] as Button).value = votes.join(",");
-                            // Optimization why search the rest if we know they only have one vote
-                            if (!this.multiple) break;
-                        }
-                    }
-                }
+        this.processButtons(this.message.length, button => {
+            const {votes, userIdIndex} = this.getVotesAndUserIndex(button, userId);
+            if (userIdIndex > -1) {
+                votes.splice(userIdIndex, 1);
+                button.value = votes.join(",");
+                // Optimization why search the rest if we know they only have one vote
+                if (!this.multiple) break;
             }
-        }
+        });
         this.generateVoteResults();
     }
 
     public vote(buttonText: string, userId: string): void {
-        for (let i = 2; i < this.message.length; i++) {
-            if (this.message[i].type === "actions") {
-                // Since we know it"s an action block as we just checked its type we can do this casting
-                const currentBlock = this.message[i] as ActionsBlock;
-                for (let j = 0; j < currentBlock.elements.length; j++) {
-                    if (currentBlock.elements[j].type === "button") {
-                        const button = currentBlock.elements[j] as Button;
-                        const votes = button.value!.split(",");
-                        const userIdIndex = votes.indexOf(userId);
-                        if (!this.multiple && userIdIndex > -1 && button.text.text !== buttonText) {
-                            votes.splice(userIdIndex, 1);
-                        } else if (button.text.text === buttonText && userIdIndex === -1) {
-                            votes.push(userId);
-                        }
-                        (currentBlock.elements[j] as Button).value = votes.join(",");
-                    }
-                }
+        this.processButtons(this.message.length, button => {
+            const {votes, userIdIndex} = this.getVotesAndUserIndex(button, userId);
+            if (!this.multiple && userIdIndex > -1 && button.text.text !== buttonText) {
+                votes.splice(userIdIndex, 1);
+            } else if (button.text.text === buttonText && userIdIndex === -1) {
+                votes.push(userId);
             }
-        }
+            button.value = votes.join(",");
+        });
         this.generateVoteResults();
     }
 
@@ -194,60 +154,49 @@ export class Poll {
     // Creates the message that will be sent to the poll author with the final results
     public collectResults(): KnownBlock[] {
         const results = this.resultGeneratorHelper(true);
-        const title = ((this.message[0] as SectionBlock).text as MrkdwnElement).text;
-        const titleBlock: SectionBlock = {
-            type: "section",
-            text: { type: "mrkdwn", text: `${title} *RESULTS (Confidential do not distribute)*` }
-        };
-        return [titleBlock].concat(results);
+        return [
+            this.buildSectionBlock(`${this.getTitleFromMsg()} *RESULTS (Confidential do not distribute)*`)
+        ].concat(results);
+    }
+    
+    private processButtons(loopEnd: number, buttonCallback: (b: Button) => void): void {
+        for (let i = 2; i < loopEnd; i++) {
+            if (this.message[i].type !== "actions") continue;
+            // Since we know it's an action block as we just checked its type we can do this casting
+            const currentBlock = this.message[i] as ActionsBlock;
+            for (let j = 0; j < currentBlock.elements.length; j++) {
+                if (currentBlock.elements[j].type !== "button") continue;
+                const button = currentBlock.elements[j] as Button;
+                buttonCallback(button);
+            }
+        }
     }
 
     // Common code used between the public results generated and the empheral collected results
     private resultGeneratorHelper(overrideAnon: boolean): SectionBlock[] {
         const dividerId = this.getDividerId();
         const votes: any = {};
-        for (let i = 2; i < dividerId; i++) {
-            if (this.message[i].type === "actions") {
-                const currentBlock = this.message[i] as ActionsBlock;
-                for (let j = 0; j < currentBlock.elements.length; j++) {
-                    if (currentBlock.elements[j].type === "button") {
-                        const currentButton = currentBlock.elements[j] as Button;
-                        votes[currentButton.text.text] = currentButton.value;
-                    }
-                }
-            }
-        }
+        this.processButtons(dividerId, currentButton => votes[currentButton.text.text] = currentButton.value);
         const responseSections: SectionBlock[] = [];
         for (const key in votes) {
-            let users: string[] = votes[key].split(",");
+            const users: string[] = votes[key].split(",");
             users.splice(0, 1);
             // Don"t bother with empty votes
             if (users.length === 0) continue;
-            let sectionText = "";
             // When anonymous we don"t display the user"s names
-            if (this.anonymous && !overrideAnon) {
-                sectionText = `*${users.length}* ${key} » ~HIDDEN~`;
-            } else {
-                users = users.map((k: string) => `<@${k}>`);
-                sectionText = `*${users.length}* ${key} » ` + users.join(",");
-            }
-            const sectionBlock: SectionBlock = { type: "section", text: { type: "mrkdwn", text: sectionText } };
-            responseSections.push(sectionBlock);
+            const names = !this.anonymous || overrideAnon ? users.map((k: string) => `<@${k}>`).join(",") : "~HIDDEN~";
+            responseSections.push(this.buildSectionBlock(`*${users.length}* ${key} » ${names}`));
         }
         return responseSections;
     }
     private generateVoteResults(): void {
-        const dividerId = this.getDividerId();
         // We throw out the old vote response and construct them again 
-        this.message = this.message.slice(0, dividerId + 1);
-        this.message = this.message.concat(this.resultGeneratorHelper(false));
+        this.message = this.message.slice(0, this.getDividerId() + 1).concat(this.resultGeneratorHelper(false));
     }
 
     private getDividerId(): number {
         for (let i = this.message.length - 1; i >= 0; i--) {
-            if (this.message[i].type === "divider") {
-                return i;
-            }
+            if (this.message[i].type === "divider") return i;
         }
         return -1;
     }
