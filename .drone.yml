@@ -16,7 +16,7 @@ steps:
       branch:
         - master
 
-  - name: deploy
+  - name: deploy-dev
     image: appleboy/drone-ssh
     settings:
       host: lp13.rpiambulance.com
