@@ -78,7 +78,7 @@ slackInteractions.action({ type: "static_select" }, async (payload, res) => {
             break;
         case "delete":
             if (`<@${payload.user.id}>` === poll.getAuthor()) {
-                payload.message.text = "This poll has been deleted";
+                payload.message.text = "This poll has been deleted.";
                 payload.message.blocks = undefined;
             } else {
                 await webclient.chat.postEphemeral({ channel: payload.channel.id, text: "Only the poll author may delete the poll.", user: payload.user.id });
