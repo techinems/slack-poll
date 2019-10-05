@@ -11,10 +11,9 @@ export class Actions {
 
     public constructor(slackAccessToken: string) {
         this.wc = new WebClient(slackAccessToken);
-        this.postMessage = this.postMessage.bind(this);
     }
 
-    public async postMessage(channel: string, text: string, blocks: KnownBlock[], user?: string): Promise<WebAPICallResult> {
+    public postMessage(channel: string, text: string, blocks: KnownBlock[], user?: string): Promise<WebAPICallResult> {
         const msg: { channel: string; text: string; blocks: KnownBlock[]; as_user?: boolean; user?: string } = { channel, text, blocks };
         if (user) {
             msg.user = user;
@@ -72,7 +71,7 @@ export class Actions {
             res.sendStatus(200);
         } catch (err) {
             console.error(err);
-            res.send("Something went wrong");
+            res.send(`Something went wrong: ${err}`);
         }
     }
 
@@ -96,7 +95,7 @@ export class Actions {
             await this.wc.chat.delete({ channel: payload.channel.id, ts: payload.message.ts })
                 .catch((err: any) => console.error(err));
             // Must be artificially slowed down to prevent the poll from glitching out on Slack's end
-            setTimeout(async () => this.postMessage(payload.channel.id, payload.message.text, payload.message.blocks), 300);
+            setTimeout(() => this.postMessage(payload.channel.id, payload.message.text, payload.message.blocks), 300);
         } else {
             await this.postEphemeralOnlyAuthor("move", "poll", payload.channel.id, payload.user.id);
         }
