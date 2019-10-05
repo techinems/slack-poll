@@ -2,7 +2,7 @@ import { KnownBlock, SectionBlock, ContextBlock, Button, ActionsBlock, StaticSel
     Option } from "@slack/types";
 
 export class Poll {
-    private static appendIfMatching(optionArray: string[], keyword: string, appendText): string {
+    private static appendIfMatching(optionArray: string[], keyword: string, appendText: string): string {
         return optionArray[0].toLowerCase() === keyword || optionArray[1].toLowerCase() === keyword ? appendText : "";
     }
     

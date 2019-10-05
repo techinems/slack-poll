@@ -23,7 +23,7 @@ export class Actions {
         await this.wc.chat.postMessage(msg);
     }
     
-    public onButtonAction(payload, res: (message: any) => Promise<unknown>): { text: string } {
+    public onButtonAction(payload: any, res: (message: any) => Promise<unknown>): { text: string } {
         const poll = new Poll(payload.message.blocks);
         poll.vote(payload.actions[0].text.text, payload.user.id);
         payload.message.blocks = poll.getBlocks();
@@ -34,7 +34,7 @@ export class Actions {
         return { text: "Vote processing!" };
     }
     
-    public onStaticSelectAction(payload, res: (message: any) => Promise<unknown>): { text: string } {
+    public onStaticSelectAction(payload: any, res: (message: any) => Promise<unknown>): { text: string } {
         const poll = new Poll(payload.message.blocks);
         switch (payload.actions[0].selected_option.value) {
             case "reset":
@@ -75,7 +75,7 @@ export class Actions {
         }
     }
     
-    private async onResetSelected(payload, poll: Poll): Promise<void> {
+    private async onResetSelected(payload: any, poll: Poll): Promise<void> {
         payload.message.text = "Vote reset!";
         if (poll.getLockedStatus()) {
             await this.wc.chat.postEphemeral({ channel: payload.channel.id, 
@@ -86,7 +86,7 @@ export class Actions {
         }
     }
     
-    private async onBottomSelected(payload, poll: Poll): Promise<void> {
+    private async onBottomSelected(payload: any, poll: Poll): Promise<void> {
         payload.message.text = "Poll moved!";
         payload.message.blocks = poll.getBlocks();
         if (Actions.isPollAuthor(payload, poll)) {
@@ -99,7 +99,7 @@ export class Actions {
         }
     }
     
-    private async onLockSelected(payload, poll: Poll): Promise<void> {
+    private async onLockSelected(payload: any, poll: Poll): Promise<void> {
         payload.message.text = "Poll locked!";
         if (Actions.isPollAuthor(payload, poll)) {
             poll.lockPoll();
@@ -109,7 +109,7 @@ export class Actions {
         }
     }
     
-    private async onDeleteSelected(payload, poll: Poll): Promise<void> {
+    private async onDeleteSelected(payload: any, poll: Poll): Promise<void> {
         if (Actions.isPollAuthor(payload, poll)) {
             payload.message.text = "This poll has been deleted.";
             payload.message.blocks = undefined;
@@ -118,7 +118,7 @@ export class Actions {
         }
     }
     
-    private async onCollectSelected(payload, poll: Poll): Promise<void> {
+    private async onCollectSelected(payload: any, poll: Poll): Promise<void> {
         payload.message.text = "Poll results collected!";
         if (Actions.isPollAuthor(payload, poll)) {
             const dm: any = await this.wc.conversations.open({ users: payload.user.id });
