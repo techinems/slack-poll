@@ -66,8 +66,9 @@ export class Actions {
 
         // Create a new poll passing in the poll author and the other params
         const poll = Poll.slashCreate(`<@${req.body.user_id}>`, req.body.text.split("\n"));
+        const postMessageFunc = this.postMessage.bind(this);
         try {
-            (async (): Promise<WebAPICallResult> => await this.postMessage(req.body.channel_id, "A poll has been posted!", poll.getBlocks()))();
+            await postMessageFunc(req.body.channel_id, "A poll has been posted!", poll.getBlocks());
             res.sendStatus(200);
         } catch (err) {
             console.error(err);
