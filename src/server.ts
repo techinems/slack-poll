@@ -29,8 +29,8 @@ app.use("/slack/actions", slackInteractions.expressMiddleware());
 
 app.use(urlencoded({ extended: true }));
 
-slackInteractions.action({ type: actions.BUTTON_ACTION }, actions.onButtonAction);
-slackInteractions.action({ type: actions.STATIC_SELECT_ACTION }, actions.onStaticSelectAction);
+slackInteractions.action({ type: Actions.BUTTON_ACTION }, actions.onButtonAction);
+slackInteractions.action({ type: Actions.STATIC_SELECT_ACTION }, actions.onStaticSelectAction);
 
 app.post("/slack/commands", actions.createPollRoute);
 
