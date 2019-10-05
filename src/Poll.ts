@@ -1,27 +1,29 @@
-import { KnownBlock, SectionBlock, ContextBlock, Button, ActionsBlock, StaticSelect, PlainTextElement, MrkdwnElement,
-    Option } from "@slack/types";
+import {
+    KnownBlock, SectionBlock, ContextBlock, Button, ActionsBlock, StaticSelect, PlainTextElement, MrkdwnElement,
+    Option
+} from "@slack/types";
 
 export class Poll {
     private static appendIfMatching(optionArray: string[], keyword: string, appendText: string): string {
         return optionArray[0].toLowerCase() === keyword || optionArray[1].toLowerCase() === keyword ? appendText : "";
     }
-    
+
     private getTitleFromMsg(): string {
         return ((this.message[0] as SectionBlock).text as MrkdwnElement).text;
     }
-    
+
     private checkIfMsgContains(value: string): boolean {
         return this.getTitleFromMsg().includes(value);
     }
-    
+
     private static buildSectionBlock(mrkdwnValue: string): SectionBlock {
         return { type: "section", text: { type: "mrkdwn", text: mrkdwnValue } };
     }
-    
+
     private static buildSelectOption(text: string, value: string): Option {
         return { text: this.buildTextElem(text), value: value };
     }
-    
+
     private static buildTextElem(text: string): PlainTextElement {
         return { type: "plain_text", text: text, emoji: true };
     }
@@ -61,7 +63,7 @@ export class Poll {
             }
             // Remove special characters, should be able to remove this once slack figures itself out
             parameters[i] = parameters[i].replace("&amp;", "+").replace("&lt;", "greater than ")
-                                         .replace("&gt;", "less than ");
+                .replace("&gt;", "less than ");
             // We set value to empty string so that it is always defined
             const button: Button = { type: "button", value: " ", text: this.buildTextElem(parameters[i]) };
             actionBlocks[actionBlockCount].elements.push(button);
@@ -114,15 +116,15 @@ export class Poll {
     public getLockedStatus(): boolean {
         return this.isLocked;
     }
-    
-    private getVotesAndUserIndex(button: Button, userId: string): {votes: string[]; userIdIndex: number} {
+
+    private getVotesAndUserIndex(button: Button, userId: string): { votes: string[]; userIdIndex: number } {
         const votes = button.value!.split(",");
-        return {votes, userIdIndex: votes.indexOf(userId)};
+        return { votes, userIdIndex: votes.indexOf(userId) };
     }
 
     public resetVote(userId: string): void {
         this.processButtons(this.message.length, button => {
-            const {votes, userIdIndex} = this.getVotesAndUserIndex(button, userId);
+            const { votes, userIdIndex } = this.getVotesAndUserIndex(button, userId);
             if (userIdIndex > -1) {
                 votes.splice(userIdIndex, 1);
                 button.value = votes.join(",");
@@ -136,7 +138,7 @@ export class Poll {
 
     public vote(buttonText: string, userId: string): void {
         this.processButtons(this.message.length, button => {
-            const {votes, userIdIndex} = this.getVotesAndUserIndex(button, userId);
+            const { votes, userIdIndex } = this.getVotesAndUserIndex(button, userId);
             if (!this.multiple && userIdIndex > -1 && button.text.text !== buttonText) {
                 votes.splice(userIdIndex, 1);
             } else if (button.text.text === buttonText && userIdIndex === -1) {
@@ -160,7 +162,7 @@ export class Poll {
             Poll.buildSectionBlock(`${this.getTitleFromMsg()} *RESULTS (Confidential do not distribute)*`)
         ].concat(results);
     }
-    
+
     private processButtons(loopEnd: number, buttonCallback: (b: Button) => boolean): void {
         for (let i = 2; i < loopEnd; i++) {
             if (this.message[i].type !== "actions") continue;
@@ -169,7 +171,7 @@ export class Poll {
             for (let j = 0; j < currentBlock.elements.length; j++) {
                 if (currentBlock.elements[j].type !== "button") continue;
                 const button = currentBlock.elements[j] as Button;
-                if(buttonCallback(button)) break;
+                if (buttonCallback(button)) break;
             }
         }
     }
