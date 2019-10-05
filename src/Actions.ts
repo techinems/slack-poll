@@ -11,6 +11,11 @@ export class Actions {
 
     public constructor(slackAccessToken: string) {
         this.wc = new WebClient(slackAccessToken);
+
+        // These are called in server.ts without scoping
+        this.onButtonAction = this.onButtonAction.bind(this);
+        this.onStaticSelectAction = this.onStaticSelectAction.bind(this);
+        this.createPollRoute = this.createPollRoute.bind(this);
     }
 
     public postMessage(channel: string, text: string, blocks: KnownBlock[], user?: string): Promise<WebAPICallResult> {
@@ -71,7 +76,7 @@ export class Actions {
             res.sendStatus(200);
         } catch (err) {
             console.error(err);
-            res.send(`Something went wrong: ${err}, ${typeof this.postMessage}, ${typeof this.wc.chat.postMessage}`);
+            res.send(`Something went wrong: ${err}`);
         }
     }
 
