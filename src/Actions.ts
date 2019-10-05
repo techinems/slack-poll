@@ -73,7 +73,7 @@ export class Actions {
         const poll = Poll.slashCreate(`<@${req.body.user_id}>`, req.body.text.split("\n"));
         try {
             await this.postMessage(req.body.channel_id, "A poll has been posted!", poll.getBlocks());
-            res.sendStatus(200);
+            res.send();
         } catch (err) {
             console.error(err);
             res.send(`Something went wrong: ${err}`);
