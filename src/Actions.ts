@@ -66,13 +66,12 @@ export class Actions {
 
         // Create a new poll passing in the poll author and the other params
         const poll = Poll.slashCreate(`<@${req.body.user_id}>`, req.body.text.split("\n"));
-        try {
-            await this.postMessage(req.body.channel_id, "A poll has been posted!", poll.getBlocks());
+        this.postMessage(req.body.channel_id, "A poll has been posted!", poll.getBlocks()).then(() => {
             res.sendStatus(200);
-        } catch (err) {
+        }).catch((err) => {
             console.error(err);
             res.send("Something went wrong");
-        }
+        });
     }
 
     private async onResetSelected(payload: any, poll: Poll): Promise<void> {
