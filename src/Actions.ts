@@ -71,7 +71,7 @@ export class Actions {
             res.sendStatus(200);
         } catch (err) {
             console.error(err);
-            res.send(`Something went wrong: ${err}`);
+            res.send(`Something went wrong: ${err}, ${typeof this.postMessage}, ${typeof this.wc.chat.postMessage}`);
         }
     }
 
