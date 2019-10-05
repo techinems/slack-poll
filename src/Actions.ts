@@ -62,7 +62,7 @@ export class Actions {
         return ({ text: "Processing request!" });
     }
 
-    public createPollRoute(req: Request, res: Response): void {
+    public async createPollRoute(req: Request, res: Response): Promise<void> {
         if (req.body.command !== "/inorout") {
             console.error(`Unregistered command ${req.body.command}`);
             res.send("Unhandled command");
@@ -72,7 +72,7 @@ export class Actions {
         // Create a new poll passing in the poll author and the other params
         const poll = Poll.slashCreate(`<@${req.body.user_id}>`, req.body.text.split("\n"));
         try {
-            this.postMessage(req.body.channel_id, "A poll has been posted!", poll.getBlocks());
+            await this.postMessage(req.body.channel_id, "A poll has been posted!", poll.getBlocks());
             res.send();
         } catch (err) {
             console.error(err);
