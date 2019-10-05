@@ -1,4 +1,8 @@
 # slack-poll
+[![Maintainability](https://api.codeclimate.com/v1/badges/0a764a4c908cda530ba9/maintainability)](https://codeclimate.com/github/rpiambulance/slack-poll/maintainability) 
+[![Build Status](https://cloud.drone.io/api/badges/rpiambulance/slack-poll/status.svg)](https://cloud.drone.io/rpiambulance/slack-poll)
+
+
 A simple databaseless polling app for Slack
 
 ## How to Setup
