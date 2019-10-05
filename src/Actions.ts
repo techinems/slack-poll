@@ -1,7 +1,7 @@
 import { Poll } from "./Poll";
 import { WebClient } from "@slack/web-api";
 import { KnownBlock } from "@slack/types";
-import { Request, Response } from "@types/express";
+// import { Request, Response } from "@types/express";
 
 export class Actions {
     public static const BUTTON_ACTION = "button";
@@ -74,7 +74,7 @@ export class Actions {
         }
     }
     
-    private onResetSelected(payload, poll: Poll): void {
+    private async onResetSelected(payload, poll: Poll): void {
         payload.message.text = "Vote reset!";
         if (poll.getLockedStatus()) {
             await this.wc.chat.postEphemeral({ channel: payload.channel.id, 
@@ -85,7 +85,7 @@ export class Actions {
         }
     }
     
-    private onBottomSelected(payload, poll: Poll): void {
+    private async onBottomSelected(payload, poll: Poll): void {
         payload.message.text = "Poll moved!";
         payload.message.blocks = poll.getBlocks();
         if (this.isPollAuthor(payload, poll)) {
@@ -98,7 +98,7 @@ export class Actions {
         }
     }
     
-    private onLockSelected(payload, poll: Poll): void {
+    private async onLockSelected(payload, poll: Poll): void {
         payload.message.text = "Poll locked!";
         if (this.isPollAuthor(payload, poll)) {
             poll.lockPoll();
@@ -108,7 +108,7 @@ export class Actions {
         }
     }
     
-    private onDeleteSelected(payload, poll: Poll): void {
+    private async onDeleteSelected(payload, poll: Poll): void {
         if (this.isPollAuthor(payload, poll)) {
             payload.message.text = "This poll has been deleted.";
             payload.message.blocks = undefined;
@@ -117,7 +117,7 @@ export class Actions {
         }
     }
     
-    private onCollectSelected(payload, poll: Poll): void {
+    private async onCollectSelected(payload, poll: Poll): void {
         payload.message.text = "Poll results collected!";
         if (this.isPollAuthor(payload, poll)) {
             const dm: any = await this.wc.conversations.open({ users: payload.user.id });
