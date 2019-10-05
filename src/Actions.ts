@@ -80,10 +80,10 @@ export class Actions {
         }
     }
 
-    private async onResetSelected(payload: any, poll: Poll): Promise<void> {
+    private onResetSelected(payload: any, poll: Poll): void {
         payload.message.text = "Vote reset!";
         if (poll.getLockedStatus()) {
-            await this.wc.chat.postEphemeral({
+            this.wc.chat.postEphemeral({
                 channel: payload.channel.id,
                 text: "You cannot reset your vote after the poll has been locked.", user: payload.user.id
             });
@@ -102,26 +102,26 @@ export class Actions {
             // Must be artificially slowed down to prevent the poll from glitching out on Slack's end
             setTimeout(() => this.postMessage(payload.channel.id, payload.message.text, payload.message.blocks), 300);
         } else {
-            await this.postEphemeralOnlyAuthor("move", "poll", payload.channel.id, payload.user.id);
+            this.postEphemeralOnlyAuthor("move", "poll", payload.channel.id, payload.user.id);
         }
     }
 
-    private async onLockSelected(payload: any, poll: Poll): Promise<void> {
+    private onLockSelected(payload: any, poll: Poll): void {
         payload.message.text = "Poll locked!";
         if (Actions.isPollAuthor(payload, poll)) {
             poll.lockPoll();
             payload.message.blocks = poll.getBlocks();
         } else {
-            await this.postEphemeralOnlyAuthor("lock", "poll", payload.channel.id, payload.user.id);
+            this.postEphemeralOnlyAuthor("lock", "poll", payload.channel.id, payload.user.id);
         }
     }
 
-    private async onDeleteSelected(payload: any, poll: Poll): Promise<void> {
+    private onDeleteSelected(payload: any, poll: Poll): void {
         if (Actions.isPollAuthor(payload, poll)) {
             payload.message.text = "This poll has been deleted.";
             payload.message.blocks = undefined;
         } else {
-            await this.postEphemeralOnlyAuthor("delete", "poll", payload.channel.id, payload.user.id);
+            this.postEphemeralOnlyAuthor("delete", "poll", payload.channel.id, payload.user.id);
         }
     }
 
@@ -130,14 +130,14 @@ export class Actions {
         if (Actions.isPollAuthor(payload, poll)) {
             const dm: any = await this.wc.conversations.open({ users: payload.user.id });
             const msg = `${payload.message.blocks[0].text.text} *RESULTS (Confidential do not distribute)*`;
-            await this.postMessage(dm.channel.id, msg, poll.collectResults(), payload.user.id);
+            this.postMessage(dm.channel.id, msg, poll.collectResults(), payload.user.id);
         } else {
-            await this.postEphemeralOnlyAuthor("collect", "results", payload.channel.id, payload.user.id);
+            this.postEphemeralOnlyAuthor("collect", "results", payload.channel.id, payload.user.id);
         }
     }
 
-    private async postEphemeralOnlyAuthor(verb: string, object: string, channel: string, user: string): Promise<void> {
-        await this.wc.chat.postEphemeral({ channel, text: `Only the poll author may ${verb} the ${object}.`, user });
+    private postEphemeralOnlyAuthor(verb: string, object: string, channel: string, user: string): Promise<WebAPICallResult> {
+        return this.wc.chat.postEphemeral({ channel, text: `Only the poll author may ${verb} the ${object}.`, user });
     }
 
     private static isPollAuthor(payload: any, poll: Poll): boolean {
