@@ -11,10 +11,10 @@ export class Poll {
     }
     
     private checkIfMsgContains(value: string): boolean {
-        return this.getTitleFromMsg().text.includes(value);
+        return this.getTitleFromMsg().includes(value);
     }
     
-    private buildSectionBlock(mrkdwnValue: string): SectionBlock {
+    private static buildSectionBlock(mrkdwnValue: string): SectionBlock {
         return { type: "section", text: { type: "mrkdwn", text: mrkdwnValue } };
     }
     
@@ -40,7 +40,7 @@ export class Poll {
             mrkdwnValue += this.appendIfMatching(optionArray, "anon", " *(Anonymous)* ");
         }
 
-        const titleBlock = this.buildSectionBlock(mrkdwnValue);
+        const titleBlock = Poll.buildSectionBlock(mrkdwnValue);
         const authorBlock: ContextBlock = {
             type: "context",
             elements: [
@@ -117,7 +117,7 @@ export class Poll {
     
     private getVotesAndUserIndex(button: Button, userId: string): {votes: string[]; userIdIndex: number} {
         const votes = button.value!.split(",");
-        return [votes, votes.indexOf(userId)];
+        return {votes, userIdIndex: votes.indexOf(userId)};
     }
 
     public resetVote(userId: string): void {
@@ -127,8 +127,9 @@ export class Poll {
                 votes.splice(userIdIndex, 1);
                 button.value = votes.join(",");
                 // Optimization why search the rest if we know they only have one vote
-                if (!this.multiple) break;
+                if (!this.multiple) return true;
             }
+            return false;
         });
         this.generateVoteResults();
     }
@@ -142,6 +143,7 @@ export class Poll {
                 votes.push(userId);
             }
             button.value = votes.join(",");
+            return false;
         });
         this.generateVoteResults();
     }
@@ -155,11 +157,11 @@ export class Poll {
     public collectResults(): KnownBlock[] {
         const results = this.resultGeneratorHelper(true);
         return [
-            this.buildSectionBlock(`${this.getTitleFromMsg()} *RESULTS (Confidential do not distribute)*`)
+            Poll.buildSectionBlock(`${this.getTitleFromMsg()} *RESULTS (Confidential do not distribute)*`)
         ].concat(results);
     }
     
-    private processButtons(loopEnd: number, buttonCallback: (b: Button) => void): void {
+    private processButtons(loopEnd: number, buttonCallback: (b: Button) => boolean): void {
         for (let i = 2; i < loopEnd; i++) {
             if (this.message[i].type !== "actions") continue;
             // Since we know it's an action block as we just checked its type we can do this casting
@@ -167,7 +169,7 @@ export class Poll {
             for (let j = 0; j < currentBlock.elements.length; j++) {
                 if (currentBlock.elements[j].type !== "button") continue;
                 const button = currentBlock.elements[j] as Button;
-                buttonCallback(button);
+                if(buttonCallback(button)) break;
             }
         }
     }
@@ -176,7 +178,10 @@ export class Poll {
     private resultGeneratorHelper(overrideAnon: boolean): SectionBlock[] {
         const dividerId = this.getDividerId();
         const votes: any = {};
-        this.processButtons(dividerId, currentButton => votes[currentButton.text.text] = currentButton.value);
+        this.processButtons(dividerId, currentButton => {
+            votes[currentButton.text.text] = currentButton.value;
+            return false;
+        });
         const responseSections: SectionBlock[] = [];
         for (const key in votes) {
             const users: string[] = votes[key].split(",");
@@ -185,7 +190,7 @@ export class Poll {
             if (users.length === 0) continue;
             // When anonymous we don"t display the user"s names
             const names = !this.anonymous || overrideAnon ? users.map((k: string) => `<@${k}>`).join(",") : "~HIDDEN~";
-            responseSections.push(this.buildSectionBlock(`*${users.length}* ${key} » ${names}`));
+            responseSections.push(Poll.buildSectionBlock(`*${users.length}* ${key} » ${names}`));
         }
         return responseSections;
     }

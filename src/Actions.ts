@@ -1,11 +1,11 @@
 import { Poll } from "./Poll";
 import { WebClient } from "@slack/web-api";
 import { KnownBlock } from "@slack/types";
-// import { Request, Response } from "@types/express";
+import { Request, Response } from "express";
 
 export class Actions {
-    public static const BUTTON_ACTION = "button";
-    public static const STATIC_SELECT_ACTION = "static_select";
+    public static readonly BUTTON_ACTION = "button";
+    public static readonly STATIC_SELECT_ACTION = "static_select";
     
     private wc: WebClient;
     
@@ -13,8 +13,8 @@ export class Actions {
         this.wc = new WebClient(slackAccessToken);
     }
     
-    public async postMessage(channel: string, text: string, blocks: KnownBlock[], user?: string): void {
-        const msg = { channel, text, blocks };
+    public async postMessage(channel: string, text: string, blocks: KnownBlock[], user?: string): Promise<void> {
+        const msg: { channel: string, text: string, blocks: KnownBlock[], as_user?: boolean, user?: string } = { channel, text, blocks };
         if (user) {
             msg.user = user;
         } else {
@@ -57,10 +57,11 @@ export class Actions {
         return ({ text: "Processing request!" });
     }
     
-    public async createPollRoute(req: Request, res: Response): void {
+    public async createPollRoute(req: Request, res: Response): Promise<void> {
         if (req.body.command !== "/inorout") {
             console.error(`Unregistered command ${req.body.command}`);
-            return res.send("Unhandled command");
+            res.send("Unhandled command");
+            return;
         }
         
         // Create a new poll passing in the poll author and the other params
@@ -74,7 +75,7 @@ export class Actions {
         }
     }
     
-    private async onResetSelected(payload, poll: Poll): void {
+    private async onResetSelected(payload, poll: Poll): Promise<void> {
         payload.message.text = "Vote reset!";
         if (poll.getLockedStatus()) {
             await this.wc.chat.postEphemeral({ channel: payload.channel.id, 
@@ -85,10 +86,10 @@ export class Actions {
         }
     }
     
-    private async onBottomSelected(payload, poll: Poll): void {
+    private async onBottomSelected(payload, poll: Poll): Promise<void> {
         payload.message.text = "Poll moved!";
         payload.message.blocks = poll.getBlocks();
-        if (this.isPollAuthor(payload, poll)) {
+        if (Actions.isPollAuthor(payload, poll)) {
             await this.wc.chat.delete({ channel: payload.channel.id, ts: payload.message.ts })
                     .catch((err: any) => console.error(err));
             // Must be artificially slowed down to prevent the poll from glitching out on Slack's end
@@ -98,9 +99,9 @@ export class Actions {
         }
     }
     
-    private async onLockSelected(payload, poll: Poll): void {
+    private async onLockSelected(payload, poll: Poll): Promise<void> {
         payload.message.text = "Poll locked!";
-        if (this.isPollAuthor(payload, poll)) {
+        if (Actions.isPollAuthor(payload, poll)) {
             poll.lockPoll();
             payload.message.blocks = poll.getBlocks();
         } else {
@@ -108,8 +109,8 @@ export class Actions {
         }
     }
     
-    private async onDeleteSelected(payload, poll: Poll): void {
-        if (this.isPollAuthor(payload, poll)) {
+    private async onDeleteSelected(payload, poll: Poll): Promise<void> {
+        if (Actions.isPollAuthor(payload, poll)) {
             payload.message.text = "This poll has been deleted.";
             payload.message.blocks = undefined;
         } else {
@@ -117,9 +118,9 @@ export class Actions {
         }
     }
     
-    private async onCollectSelected(payload, poll: Poll): void {
+    private async onCollectSelected(payload, poll: Poll): Promise<void> {
         payload.message.text = "Poll results collected!";
-        if (this.isPollAuthor(payload, poll)) {
+        if (Actions.isPollAuthor(payload, poll)) {
             const dm: any = await this.wc.conversations.open({ users: payload.user.id });
             const msg = `${payload.message.blocks[0].text.text} *RESULTS (Confidential do not distribute)*`;
             await this.postMessage(dm.channel.id, msg, poll.collectResults(), payload.user.id);
@@ -128,7 +129,7 @@ export class Actions {
         }
     }
     
-    private async postEphemeralOnlyAuthor(verb: string, object: string, channel: string, user: string): void {
+    private async postEphemeralOnlyAuthor(verb: string, object: string, channel: string, user: string): Promise<void> {
         await this.wc.chat.postEphemeral({ channel, text: `Only the poll author may ${verb} the ${object}.`, user });
     }
     
