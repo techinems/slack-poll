@@ -1,5 +1,5 @@
 import { Poll } from "./Poll";
-import { WebClient } from "@slack/web-api";
+import { WebClient, WebAPICallResult } from "@slack/web-api";
 import { KnownBlock } from "@slack/types";
 import { Request, Response } from "express";
 
@@ -13,14 +13,14 @@ export class Actions {
         this.wc = new WebClient(slackAccessToken);
     }
 
-    public async postMessage(channel: string, text: string, blocks: KnownBlock[], user?: string): Promise<void> {
+    public async postMessage(channel: string, text: string, blocks: KnownBlock[], user?: string): Promise<WebAPICallResult> {
         const msg: { channel: string; text: string; blocks: KnownBlock[]; as_user?: boolean; user?: string } = { channel, text, blocks };
         if (user) {
             msg.user = user;
         } else {
             msg.as_user = false;
         }
-        await this.wc.chat.postMessage(msg);
+        return this.wc.chat.postMessage(msg);
     }
 
     public onButtonAction(payload: any, res: (message: any) => Promise<unknown>): { text: string } {
@@ -66,12 +66,13 @@ export class Actions {
 
         // Create a new poll passing in the poll author and the other params
         const poll = Poll.slashCreate(`<@${req.body.user_id}>`, req.body.text.split("\n"));
-        this.postMessage(req.body.channel_id, "A poll has been posted!", poll.getBlocks()).then(() => {
+        try {
+            await this.postMessage(req.body.channel_id, "A poll has been posted!", poll.getBlocks());
             res.sendStatus(200);
-        }).catch((err) => {
+        } catch (err) {
             console.error(err);
             res.send("Something went wrong");
-        });
+        }
     }
 
     private async onResetSelected(payload: any, poll: Poll): Promise<void> {
