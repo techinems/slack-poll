@@ -89,7 +89,11 @@ export class Actions {
     // Create a new poll passing in the poll author and the other params
     const poll = Poll.slashCreate(
       `<@${req.body.user_id}>`,
-      req.body.text.split("\n")
+      req.body.text
+        .replace("@channel", "")
+        .replace("@everyone", "")
+        .replace("@here", "")
+        .split("\n")
     );
     try {
       await this.postMessage(
