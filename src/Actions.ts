@@ -70,7 +70,7 @@ export class Actions {
         }
 
         // Create a new poll passing in the poll author and the other params
-        const poll = Poll.slashCreate(`<@${req.body.user_id}>`, req.body.text.split("\n"));
+        const poll = Poll.slashCreate(`<@${req.body.user_id}>`, req.body.text.replace("@channel", "").replace("@everyone", "").replace("@here", "").split("\n"));
         try {
             await this.postMessage(req.body.channel_id, "A poll has been posted!", poll.getBlocks());
             res.send();
