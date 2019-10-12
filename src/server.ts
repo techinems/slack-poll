@@ -14,7 +14,7 @@ const SLACK_SIGNING_SECRET = process.env.SLACK_SIGNING_SECRET;
 const PORT = process.env.PORT || 3000;
 
 if (!(SLACK_ACCESS_TOKEN && SLACK_SIGNING_SECRET)) {
-    throw "Environment variables not properly loaded!";
+  throw "Environment variables not properly loaded!";
 }
 
 // Intialize Express app
@@ -29,10 +29,15 @@ app.use("/slack/actions", slackInteractions.expressMiddleware());
 
 app.use(urlencoded({ extended: true }));
 
-slackInteractions.action({ type: Actions.BUTTON_ACTION }, actions.onButtonAction);
-slackInteractions.action({ type: Actions.STATIC_SELECT_ACTION }, actions.onStaticSelectAction);
+slackInteractions.action(
+  { type: Actions.BUTTON_ACTION },
+  actions.onButtonAction
+);
+slackInteractions.action(
+  { type: Actions.STATIC_SELECT_ACTION },
+  actions.onStaticSelectAction
+);
 
 app.post("/slack/commands", actions.createPollRoute);
 
 app.listen(PORT, () => console.log(`In Or Out server running on ${PORT}`));
-
