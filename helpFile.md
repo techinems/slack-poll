@@ -49,3 +49,8 @@ The current list of options are
 multiple, anon, help
 ```
 If you have a request for a new option, reach out in #dev!
+
+## Changing published polls
+Once you publish a poll, the author has the following options: :lock: lock poll, move to bottom, and delete poll. Locking the poll prevents any changes to votes. Moving the poll the bottom will remove the poll from its current location and send it to the bottom of the channel. Finally deleting a poll removes the question, answers, and responses and leaves a little breadcrumb saying there is a deleted poll here.
+
+The final option is for any user and allows them to remove their vote until the poll is locked or deleted. 
