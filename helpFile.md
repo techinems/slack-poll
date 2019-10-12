@@ -21,12 +21,12 @@ When should we go to Snowman's?
 1830
 1900
 ```
-Note we put our option on the same line as the command then on a new line we put our title.
+Note we put our option on the same line as the command then on a new line we put our question.
 
 ##  Anonymous polls
 There are some cases where we may want to allow for someone to vote without
 revealing their identity. That can be accomplished with the `anon` option and
-looks something like this.
+looks like
 ```
 /inorout anon
 The best LT was
@@ -34,7 +34,7 @@ The best LT was
 982
 992
 ```
-again, like with `multiple`, we put the option, `anon` on the same line as the command.
+Again, like with `multiple`, we put the option, `anon` on the same line as the command.
 
 ## Combining options
 If you want to use multiple options, just put them on the same line separated by a space
