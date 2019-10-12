@@ -1,5 +1,5 @@
 # slack-poll
-[![Maintainability](https://api.codeclimate.com/v1/badges/0a764a4c908cda530ba9/maintainability)](https://codeclimate.com/github/rpiambulance/slack-poll/maintainability) 
+[![Maintainability](https://api.codeclimate.com/v1/badges/0a764a4c908cda530ba9/maintainability)](https://codeclimate.com/github/rpiambulance/slack-poll/maintainability)
 [![Build Status](https://cloud.drone.io/api/badges/rpiambulance/slack-poll/status.svg)](https://cloud.drone.io/rpiambulance/slack-poll)
 
 
@@ -14,7 +14,8 @@ A simple databaseless polling app for Slack
 
 ## How to Use
 ```
-/inorout Question
+/inorout
+Question
 :emoji: Answer
 :emoji2: Answer 2
 ...
@@ -22,3 +23,4 @@ A simple databaseless polling app for Slack
 ```
 
 Emojis are optional but always fun :)
+For more detailed usage guide, see `helpFile.md`

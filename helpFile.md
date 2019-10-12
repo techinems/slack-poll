@@ -8,7 +8,7 @@ Yes
 No
 Only 540
 ```
-If you want more answers, just insert them on a new line.
+If you want more answers, just insert them on a new line. Questions and answers can contain emojis if you like!
 
 ## Allowing for multiple answers
 Suppose we want to know what day of the weekend people are good to party. Someone
@@ -29,7 +29,7 @@ revealing their identity. That can be accomplished with the `anon` option and
 looks something like this.
 ```
 /inorout anon
-Who was a better 1st LT?
+The best LT was
 923
 982
 992
