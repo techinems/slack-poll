@@ -151,6 +151,8 @@ export class Poll {
     }
 
     public lockPoll(): void {
+        this.isLocked = true;
+        this.generateVoteResults();
         this.message = this.message.slice(0, 2).concat(this.message.slice(this.getDividerId() - 1));
         // ((this.message[2] as ActionsBlock).elements[0] as StaticSelect).options!.splice(0, 2);
     }
@@ -185,6 +187,7 @@ export class Poll {
             return false;
         });
         const responseSections: SectionBlock[] = [];
+        if (this.isLocked)  responseSections.push(Poll.buildSectionBlock( ":lock:"));
         for (const key in votes) {
             const users: string[] = votes[key].split(",");
             users.splice(0, 1);
@@ -192,7 +195,7 @@ export class Poll {
             if (users.length === 0) continue;
             // When anonymous we don"t display the user"s names
             const names = !this.anonymous || overrideAnon ? users.map((k: string) => `<@${k}>`).join(",") : "~HIDDEN~";
-            responseSections.push(Poll.buildSectionBlock(`*${users.length}* ${key} » ${names}`));
+            responseSections.push(Poll.buildSectionBlock(`*${users.length}* ${key} » ${names} `));
         }
         return responseSections;
     }
