@@ -195,7 +195,7 @@ export class Poll {
             if (users.length === 0) continue;
             // When anonymous we don"t display the user"s names
             const names = !this.anonymous || overrideAnon ? users.map((k: string) => `<@${k}>`).join(",") : "~HIDDEN~";
-            responseSections.push(Poll.buildSectionBlock(`*${users.length}* ${key} » ${names} `));
+            responseSections.push(Poll.buildSectionBlock(`*${users.length}* ${key} » ${names}`));
         }
         return responseSections;
     }
