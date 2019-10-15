@@ -151,6 +151,8 @@ export class Poll {
     }
 
     public lockPoll(): void {
+        this.isLocked = true;
+        this.generateVoteResults();
         this.message = this.message.slice(0, 2).concat(this.message.slice(this.getDividerId() - 1));
         // ((this.message[2] as ActionsBlock).elements[0] as StaticSelect).options!.splice(0, 2);
     }
@@ -185,6 +187,7 @@ export class Poll {
             return false;
         });
         const responseSections: SectionBlock[] = [];
+        if (this.isLocked)  responseSections.push(Poll.buildSectionBlock( ":lock:"));
         for (const key in votes) {
             const users: string[] = votes[key].split(",");
             users.splice(0, 1);
