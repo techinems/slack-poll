@@ -4,6 +4,7 @@
   "description": "Databaseless Slack Polling",
   "main": "server.js",
   "scripts": {
+    "prestart": "npm run compile",
     "start": "node out/server.js",
     "watch": "tsc --watch",
     "compile": "tsc"
