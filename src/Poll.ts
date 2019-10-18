@@ -1,38 +1,16 @@
 import {
-    KnownBlock, SectionBlock, ContextBlock, Button, ActionsBlock, StaticSelect, PlainTextElement, MrkdwnElement,
-    Option
+    KnownBlock, SectionBlock, ContextBlock, Button, ActionsBlock, StaticSelect, PlainTextElement, MrkdwnElement
 } from "@slack/types";
-import * as Sentry from '@sentry/node';
+import {Static} from "./Static";
+import * as Sentry from "@sentry/node";
 
 export class Poll {
-    private static appendIfMatching(optionArray: string[], keyword: string, appendText: string): string {
-        return optionArray[0].toLowerCase() === keyword || optionArray[1].toLowerCase() === keyword ? appendText : "";
-    }
-
     private getTitleFromMsg(): string {
         return ((this.message[0] as SectionBlock).text as MrkdwnElement).text;
     }
-
     private checkIfMsgContains(value: string): boolean {
         return this.getTitleFromMsg().includes(value);
     }
-
-    private static buildSectionBlock(mrkdwnValue: string): SectionBlock {
-        return { type: "section", text: { type: "mrkdwn", text: mrkdwnValue } };
-    }
-
-    private static buildContextBlock(mrkdwnValue: string): ContextBlock {
-        return { type: "context", elements: [ { type: "mrkdwn", text: mrkdwnValue } ] };
-    }
-
-    private static buildSelectOption(text: string, value: string): Option {
-        return { text: this.buildTextElem(text), value: value };
-    }
-
-    private static buildTextElem(text: string): PlainTextElement {
-        return { type: "plain_text", text, emoji: true };
-    }
-
     static slashCreate(author: string, parameters: string[]): Poll {
         if (process.env.SENTRY_DSN) {
             Sentry.configureScope(scope => {
@@ -50,12 +28,12 @@ export class Poll {
         if (optionArray[0].toLowerCase() === "multiple" || optionArray[0].toLowerCase() === "anon") {
             // If options are provided then the first line becomes all the options and the second line is the title
             mrkdwnValue = parameters[1];
-            mrkdwnValue += this.appendIfMatching(optionArray, "multiple", " *(Multiple Answers)* ");
-            mrkdwnValue += this.appendIfMatching(optionArray, "anon", " *(Anonymous)* ");
+            mrkdwnValue += Static.appendIfMatching(optionArray, "multiple", " *(Multiple Answers)* ");
+            mrkdwnValue += Static.appendIfMatching(optionArray, "anon", " *(Anonymous)* ");
         }
 
-        const titleBlock = Poll.buildSectionBlock(mrkdwnValue);
-        message.push(titleBlock, Poll.buildContextBlock(`Asked by: ${author}`));
+        const titleBlock = Static.buildSectionBlock(mrkdwnValue);
+        message.push(titleBlock, Static.buildContextBlock(`Asked by: ${author}`));
         const actionBlocks: ActionsBlock[] = [{ type: "actions", elements: [] }];
         let actionBlockCount = 0;
         // Construct all the buttons
@@ -70,23 +48,23 @@ export class Poll {
             parameters[i] = parameters[i].replace("&amp;", "+").replace("&lt;", "greater than ")
                 .replace("&gt;", "less than ");
             // We set value to empty string so that it is always defined
-            const button: Button = { type: "button", value: " ", text: this.buildTextElem(parameters[i]) };
+            const button: Button = { type: "button", value: " ", text: Static.buildTextElem(parameters[i]) };
             actionBlocks[actionBlockCount].elements.push(button);
         }
         // The various poll options
         const selection: StaticSelect = {
             type: "static_select",
-            placeholder: this.buildTextElem("Poll Options"),
+            placeholder: Static.buildTextElem("Poll Options"),
             options: [
-                this.buildSelectOption("Reset your vote", "reset"),
-                this.buildSelectOption(":lock: Lock poll", "lock"),
-                this.buildSelectOption("Move to bottom", "bottom"),
-                this.buildSelectOption("Delete poll", "delete")
+                Static.buildSelectOption("Reset your vote", "reset"),
+                Static.buildSelectOption(":lock: Lock poll", "lock"),
+                Static.buildSelectOption("Move to bottom", "bottom"),
+                Static.buildSelectOption("Delete poll", "delete")
             ]
         };
         // If anonymous we want the author to be able to collect the poll results
         if (optionArray[0].toLowerCase() === "anon" || optionArray[1].toLowerCase() === "anon") {
-            selection.options!.push(this.buildSelectOption("Collect Results", "collect"));
+            selection.options!.push(Static.buildSelectOption("Collect Results", "collect"));
         }
         actionBlocks.push({ type: "actions", elements: [selection] });
         message = message.concat(actionBlocks);
@@ -163,7 +141,7 @@ export class Poll {
     public collectResults(): KnownBlock[] {
         const results = this.generateResults(true);
         return [
-            Poll.buildSectionBlock(`${this.getTitleFromMsg()} *RESULTS (Confidential: do not distribute)*`)
+            Static.buildSectionBlock(`${this.getTitleFromMsg()} *RESULTS (Confidential: do not distribute)*`)
         ].concat(results);
     }
 
@@ -187,7 +165,7 @@ export class Poll {
         if (users.length === 0) return null;
         // When anonymous we don"t display the user"s names
         const names = !this.anonymous || overrideAnon ? users.map((k: string) => `<@${k}>`).join(",") : "~HIDDEN~";
-        return Poll.buildSectionBlock(`*${users.length}* ${key} » ${names}`);
+        return Static.buildSectionBlock(`*${users.length}* ${key} » ${names}`);
     }
 
     // Common code used between the public results generated and the empheral collected results
@@ -199,7 +177,7 @@ export class Poll {
             return false;
         });
         const sections = Object.keys(votes).map(key => this.buildVoteTally(overrideAnon, votes, key) as SectionBlock);
-        if (this.isLocked) sections.unshift(Poll.buildSectionBlock(":lock:"));
+        if (this.isLocked) sections.unshift(Static.buildSectionBlock(":lock:"));
         return sections;
     }
 
