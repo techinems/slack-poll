@@ -3,6 +3,12 @@ import * as dotenv from "dotenv";
 import { urlencoded } from "body-parser";
 import { createMessageAdapter } from "@slack/interactive-messages";
 import { Actions } from "./Actions";
+import { Sentry } = require('@sentry/node');
+
+// Configure Sentry exception logging
+if (process.env.SENTRY_DSN) {
+    Sentry.init({ dsn: process.env.SENTRY_DSN });
+}
 
 // Load Environment variables
 dotenv.config();
