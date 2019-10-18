@@ -2,6 +2,7 @@ import {
     KnownBlock, SectionBlock, ContextBlock, Button, ActionsBlock, StaticSelect, PlainTextElement, MrkdwnElement,
     Option
 } from "@slack/types";
+import * as Sentry from '@sentry/node';
 
 export class Poll {
     private static appendIfMatching(optionArray: string[], keyword: string, appendText: string): string {
@@ -33,6 +34,13 @@ export class Poll {
     }
 
     static slashCreate(author: string, parameters: string[]): Poll {
+        if (process.env.SENTRY_DSN) {
+            Sentry.configureScope(scope => {
+                scope.setUser({ username: author });
+                scope.setExtra("parameters", parameters);
+            });
+        }
+
         let message: KnownBlock[] = [];
         const optionArray = parameters[0].split(" ");
         // Don't have to worry about the difference in comparisons if there is one or two options
