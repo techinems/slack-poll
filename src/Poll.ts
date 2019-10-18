@@ -131,6 +131,7 @@ export class Poll {
     }
 
     public lockPoll(): void {
+        if (this.isLocked) return;
         this.isLocked = true;
         this.generateVoteResults();
         this.message = this.message.slice(0, 2).concat(this.message.slice(this.getDividerId() - 1));
