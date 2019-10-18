@@ -17,7 +17,7 @@ if (!process.env.SLACK_ACCESS_TOKEN || !process.env.SLACK_SIGNING_SECRET) {
 if (process.env.SENTRY_DSN) {
     const sentryConfig : Sentry.NodeOptions = {
         dsn: process.env.SENTRY_DSN,
-        release: require('../package.json').version
+        release: `slack-poll@${require('./package.json').version}`
     };
     if (process.env.ENVIRONMENT) sentryConfig.environment = process.env.ENVIRONMENT;
     Sentry.init(sentryConfig);
