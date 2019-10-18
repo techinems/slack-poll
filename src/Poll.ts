@@ -2,6 +2,7 @@ import {
     KnownBlock, SectionBlock, ContextBlock, Button, ActionsBlock, StaticSelect, PlainTextElement, MrkdwnElement,
     Option
 } from "@slack/types";
+import * as Sentry from '@sentry/node';
 
 export class Poll {
     private static appendIfMatching(optionArray: string[], keyword: string, appendText: string): string {
@@ -20,18 +21,29 @@ export class Poll {
         return { type: "section", text: { type: "mrkdwn", text: mrkdwnValue } };
     }
 
+    private static buildContextBlock(mrkdwnValue: string): ContextBlock {
+        return { type: "context", elements: [ { type: "mrkdwn", text: mrkdwnValue } ] };
+    }
+
     private static buildSelectOption(text: string, value: string): Option {
         return { text: this.buildTextElem(text), value: value };
     }
 
     private static buildTextElem(text: string): PlainTextElement {
-        return { type: "plain_text", text: text, emoji: true };
+        return { type: "plain_text", text, emoji: true };
     }
 
     static slashCreate(author: string, parameters: string[]): Poll {
+        if (process.env.SENTRY_DSN) {
+            Sentry.configureScope(scope => {
+                scope.setUser({ username: author });
+                scope.setExtra("parameters", parameters);
+            });
+        }
+
         let message: KnownBlock[] = [];
         const optionArray = parameters[0].split(" ");
-        // That way I don"t have to worry about the difference in comparisons if there is one or two options
+        // Don't have to worry about the difference in comparisons if there is one or two options
         if (optionArray.length === 1) optionArray.push(" ");
 
         let mrkdwnValue = parameters[0];
@@ -43,14 +55,7 @@ export class Poll {
         }
 
         const titleBlock = Poll.buildSectionBlock(mrkdwnValue);
-        const authorBlock: ContextBlock = {
-            type: "context",
-            elements: [
-                { type: "mrkdwn", text: `Asked by: ${author}` }
-            ]
-        };
-        message.push(titleBlock);
-        message.push(authorBlock);
+        message.push(titleBlock, Poll.buildContextBlock(`Asked by: ${author}`));
         const actionBlocks: ActionsBlock[] = [{ type: "actions", elements: [] }];
         let actionBlockCount = 0;
         // Construct all the buttons
@@ -83,7 +88,6 @@ export class Poll {
         if (optionArray[0].toLowerCase() === "anon" || optionArray[1].toLowerCase() === "anon") {
             selection.options!.push(this.buildSelectOption("Collect Results", "collect"));
         }
-        actionBlockCount++;
         actionBlocks.push({ type: "actions", elements: [selection] });
         message = message.concat(actionBlocks);
         // Add a divider in between so later we can put the messages
@@ -125,13 +129,11 @@ export class Poll {
     public resetVote(userId: string): void {
         this.processButtons(this.message.length, button => {
             const { votes, userIdIndex } = this.getVotesAndUserIndex(button, userId);
-            if (userIdIndex > -1) {
-                votes.splice(userIdIndex, 1);
-                button.value = votes.join(",");
-                // Optimization why search the rest if we know they only have one vote
-                if (!this.multiple) return true;
-            }
-            return false;
+            if (userIdIndex === -1) return false;
+            votes.splice(userIdIndex, 1);
+            button.value = votes.join(",");
+            // Optimization: why search the rest if we know they only have one vote?
+            return !this.multiple;
         });
         this.generateVoteResults();
     }
@@ -151,15 +153,17 @@ export class Poll {
     }
 
     public lockPoll(): void {
+        this.isLocked = true;
+        this.generateVoteResults();
         this.message = this.message.slice(0, 2).concat(this.message.slice(this.getDividerId() - 1));
         // ((this.message[2] as ActionsBlock).elements[0] as StaticSelect).options!.splice(0, 2);
     }
 
     // Creates the message that will be sent to the poll author with the final results
     public collectResults(): KnownBlock[] {
-        const results = this.resultGeneratorHelper(true);
+        const results = this.generateResults(true);
         return [
-            Poll.buildSectionBlock(`${this.getTitleFromMsg()} *RESULTS (Confidential do not distribute)*`)
+            Poll.buildSectionBlock(`${this.getTitleFromMsg()} *RESULTS (Confidential: do not distribute)*`)
         ].concat(results);
     }
 
@@ -176,29 +180,32 @@ export class Poll {
         }
     }
 
+    private buildVoteTally(overrideAnon: boolean, votes: any, key: string): SectionBlock | null {
+        const users: string[] = votes[key].split(",");
+        users.splice(0, 1);
+        // Don"t bother with empty votes
+        if (users.length === 0) return null;
+        // When anonymous we don"t display the user"s names
+        const names = !this.anonymous || overrideAnon ? users.map((k: string) => `<@${k}>`).join(",") : "~HIDDEN~";
+        return Poll.buildSectionBlock(`*${users.length}* ${key} » ${names}`);
+    }
+
     // Common code used between the public results generated and the empheral collected results
-    private resultGeneratorHelper(overrideAnon: boolean): SectionBlock[] {
+    private generateResults(overrideAnon: boolean): SectionBlock[] {
         const dividerId = this.getDividerId();
         const votes: any = {};
         this.processButtons(dividerId, currentButton => {
             votes[currentButton.text.text] = currentButton.value;
             return false;
         });
-        const responseSections: SectionBlock[] = [];
-        for (const key in votes) {
-            const users: string[] = votes[key].split(",");
-            users.splice(0, 1);
-            // Don"t bother with empty votes
-            if (users.length === 0) continue;
-            // When anonymous we don"t display the user"s names
-            const names = !this.anonymous || overrideAnon ? users.map((k: string) => `<@${k}>`).join(",") : "~HIDDEN~";
-            responseSections.push(Poll.buildSectionBlock(`*${users.length}* ${key} » ${names}`));
-        }
-        return responseSections;
+        const sections = Object.keys(votes).map(key => this.buildVoteTally(overrideAnon, votes, key) as SectionBlock);
+        if (this.isLocked) sections.unshift(Poll.buildSectionBlock(":lock:"));
+        return sections;
     }
+
     private generateVoteResults(): void {
         // We throw out the old vote response and construct them again 
-        this.message = this.message.slice(0, this.getDividerId() + 1).concat(this.resultGeneratorHelper(false));
+        this.message = this.message.slice(0, this.getDividerId() + 1).concat(this.generateResults(false));
     }
 
     private getDividerId(): number {
