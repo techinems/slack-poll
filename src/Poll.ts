@@ -178,7 +178,12 @@ export class Poll {
             return false;
         });
         console.log(votes);
-        const sections = Object.keys(votes).map(key => this.buildVoteTally(overrideAnon, votes, key) as SectionBlock);
+        const sections = [];
+        for (const key in votes) {
+            const currentSection = this.buildVoteTally(overrideAnon, votes, key);
+            if (currentSection) sections.push(currentSection);
+        }
+        // const sections = Object.keys(votes).map(key => this.buildVoteTally(overrideAnon, votes, key));
         if (this.isLocked) sections.unshift(PollHelpers.buildSectionBlock(":lock:"));
         return sections;
     }
