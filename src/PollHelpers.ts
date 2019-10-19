@@ -2,7 +2,7 @@ import {
     SectionBlock, ContextBlock, PlainTextElement, Option
 } from "@slack/types";
 
-export class Static {
+export class PollHelpers {
     public static appendIfMatching(optionArray: string[], keyword: string, appendText: string): string {
         return optionArray[0].toLowerCase() === keyword || optionArray[1].toLowerCase() === keyword ? appendText : "";
     }

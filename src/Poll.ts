@@ -1,7 +1,7 @@
 import {
     KnownBlock, SectionBlock, ContextBlock, Button, ActionsBlock, StaticSelect, PlainTextElement, MrkdwnElement
 } from "@slack/types";
-import {Static} from "./Static";
+import { PollHelpers } from "./PollHelpers";
 import * as Sentry from "@sentry/node";
 
 export class Poll {
@@ -28,12 +28,12 @@ export class Poll {
         if (optionArray[0].toLowerCase() === "multiple" || optionArray[0].toLowerCase() === "anon") {
             // If options are provided then the first line becomes all the options and the second line is the title
             mrkdwnValue = parameters[1];
-            mrkdwnValue += Static.appendIfMatching(optionArray, "multiple", " *(Multiple Answers)* ");
-            mrkdwnValue += Static.appendIfMatching(optionArray, "anon", " *(Anonymous)* ");
+            mrkdwnValue += PollHelpers.appendIfMatching(optionArray, "multiple", " *(Multiple Answers)* ");
+            mrkdwnValue += PollHelpers.appendIfMatching(optionArray, "anon", " *(Anonymous)* ");
         }
 
-        const titleBlock = Static.buildSectionBlock(mrkdwnValue);
-        message.push(titleBlock, Static.buildContextBlock(`Asked by: ${author}`));
+        const titleBlock = PollHelpers.buildSectionBlock(mrkdwnValue);
+        message.push(titleBlock, PollHelpers.buildContextBlock(`Asked by: ${author}`));
         const actionBlocks: ActionsBlock[] = [{ type: "actions", elements: [] }];
         let actionBlockCount = 0;
         // Construct all the buttons
@@ -48,23 +48,23 @@ export class Poll {
             parameters[i] = parameters[i].replace("&amp;", "+").replace("&lt;", "greater than ")
                 .replace("&gt;", "less than ");
             // We set value to empty string so that it is always defined
-            const button: Button = { type: "button", value: " ", text: Static.buildTextElem(parameters[i]) };
+            const button: Button = { type: "button", value: " ", text: PollHelpers.buildTextElem(parameters[i]) };
             actionBlocks[actionBlockCount].elements.push(button);
         }
         // The various poll options
         const selection: StaticSelect = {
             type: "static_select",
-            placeholder: Static.buildTextElem("Poll Options"),
+            placeholder: PollHelpers.buildTextElem("Poll Options"),
             options: [
-                Static.buildSelectOption("Reset your vote", "reset"),
-                Static.buildSelectOption(":lock: Lock poll", "lock"),
-                Static.buildSelectOption("Move to bottom", "bottom"),
-                Static.buildSelectOption("Delete poll", "delete")
+                PollHelpers.buildSelectOption("Reset your vote", "reset"),
+                PollHelpers.buildSelectOption(":lock: Lock poll", "lock"),
+                PollHelpers.buildSelectOption("Move to bottom", "bottom"),
+                PollHelpers.buildSelectOption("Delete poll", "delete")
             ]
         };
         // If anonymous we want the author to be able to collect the poll results
         if (optionArray[0].toLowerCase() === "anon" || optionArray[1].toLowerCase() === "anon") {
-            selection.options!.push(Static.buildSelectOption("Collect Results", "collect"));
+            selection.options!.push(PollHelpers.buildSelectOption("Collect Results", "collect"));
         }
         actionBlocks.push({ type: "actions", elements: [selection] });
         message = message.concat(actionBlocks);
@@ -142,7 +142,7 @@ export class Poll {
     public collectResults(): KnownBlock[] {
         const results = this.generateResults(true);
         return [
-            Static.buildSectionBlock(`${this.getTitleFromMsg()} *RESULTS (Confidential: do not distribute)*`)
+            PollHelpers.buildSectionBlock(`${this.getTitleFromMsg()} *RESULTS (Confidential: do not distribute)*`)
         ].concat(results);
     }
 
@@ -166,7 +166,7 @@ export class Poll {
         if (users.length === 0) return null;
         // When anonymous we don"t display the user"s names
         const names = !this.anonymous || overrideAnon ? users.map((k: string) => `<@${k}>`).join(",") : "~HIDDEN~";
-        return Static.buildSectionBlock(`*${users.length}* ${key} » ${names}`);
+        return PollHelpers.buildSectionBlock(`*${users.length}* ${key} » ${names}`);
     }
 
     // Common code used between the public results generated and the empheral collected results
@@ -178,7 +178,7 @@ export class Poll {
             return false;
         });
         const sections = Object.keys(votes).map(key => this.buildVoteTally(overrideAnon, votes, key) as SectionBlock);
-        if (this.isLocked) sections.unshift(Static.buildSectionBlock(":lock:"));
+        if (this.isLocked) sections.unshift(PollHelpers.buildSectionBlock(":lock:"));
         return sections;
     }
 
