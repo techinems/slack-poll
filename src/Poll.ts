@@ -69,7 +69,9 @@ export class Poll {
         this.multiple = this.checkIfMsgContains("(Multiple Answers)");
         this.anonymous = this.checkIfMsgContains("(Anonymous)");
         //if the is a lock symbol right below the divider, the poll is locked
-        this.isLocked = (this.message.length-1 === this.getDividerId())? false : ((this.message[this.getDividerId()+1] as SectionBlock).text as MrkdwnElement).text === ":lock:";
+        if (this.message.length-1 !== this.getDividerId()) {
+            this.isLocked = ((this.message[this.getDividerId()+1] as SectionBlock).text as MrkdwnElement).text === ":lock:";
+        }
     }
 
     public getBlocks(): KnownBlock[] {
