@@ -32,7 +32,12 @@ export class Actions {
         const poll = new Poll(payload.message.blocks);
         poll.vote(payload.actions[0].text.text, payload.user.id);
         payload.message.blocks = poll.getBlocks();
-        payload.message.text = "Vote changed!";
+        // Sends user message if their vote was changed or blocked due to the poll being locked
+        const vote_text = poll.getLockedStatus() ? "You cannot vote after the poll has been locked!" : "Vote changed!";
+        this.wc.chat.postEphemeral({
+                channel: payload.channel.id,
+                text: vote_text, user: payload.user.id
+            });
         // We respond with the new payload
         res(payload.message);
         // In case it is being slow users will see this message
