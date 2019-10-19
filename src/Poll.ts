@@ -68,8 +68,8 @@ export class Poll {
         // Since its databaseless the way we know if it is anonymous or multiple is by parsing the title
         this.multiple = this.checkIfMsgContains("(Multiple Answers)");
         this.anonymous = this.checkIfMsgContains("(Anonymous)");
-        // If there's no buttons then the poll is locked
-        this.isLocked = this.message[3].type === "divider";
+        //if the is a lock symbol right below the divider, the poll is locked
+        this.isLocked = (this.message.length-1 === this.getDividerId())? false : ((this.message[this.getDividerId()+1] as SectionBlock).text as MrkdwnElement).text === ":lock:";
     }
 
     public getBlocks(): KnownBlock[] {
@@ -100,6 +100,9 @@ export class Poll {
                 Static.buildSelectOption("Delete poll", "delete")
             ]
         };
+        if (this.anonymous) {
+            selection.options!.push(Static.buildSelectOption("Collect Results", "collect"));
+        }
         return [{ type: "actions", elements: [selection] }];
     }
 
@@ -116,6 +119,7 @@ export class Poll {
     }
 
     public vote(buttonText: string, userId: string): void {
+        if (this.isLocked) return;
         this.processButtons(this.message.length, button => {
             const { votes, userIdIndex } = this.getVotesAndUserIndex(button, userId);
             if (!this.multiple && userIdIndex > -1 && button.text.text !== buttonText) {
@@ -132,20 +136,13 @@ export class Poll {
     public lockPoll(): void {
         this.isLocked = true;
         this.generateVoteResults();
-        this.message = this.message.slice(0, 2).concat(this.getDynamicSelect()).concat(this.message.slice(this.getDividerId()));
+        this.message = this.message.slice(0, this.getDividerId()-1).concat(this.getDynamicSelect()).concat(this.message.slice(this.getDividerId()));
         // ((this.message[2] as ActionsBlock).elements[0] as StaticSelect).options!.splice(0, 2);
     }
 
     public unlockpoll(): void {
-        const voteoptions = [];
-        const results = this.message.slice(this.getDividerId()+2);
-        for (let i = 0; i < results.length; i++) {
-            const option = ((results[i] as SectionBlock).text as MrkdwnElement).text;
-           voteoptions.push(option.substr(option.indexOf("* "), option.indexOf(" »")).slice(2,-2));
-        }
-        const actionBlocks = Static.buildVoteOptions(voteoptions,0);
         this.isLocked = false;
-        this.message = this.message.slice(0,2).concat(actionBlocks).concat(this.getDynamicSelect()).concat({ type: "divider" }).concat(this.message.slice(this.getDividerId()+2));
+        this.message = this.message.slice(0,this.getDividerId()-1).concat(this.getDynamicSelect()).concat({ type: "divider" }).concat(this.message.slice(this.getDividerId()+2));
     }
 
     // Creates the message that will be sent to the poll author with the final results
@@ -191,7 +188,7 @@ export class Poll {
     }
 
     private generateVoteResults(): void {
-        // We throw out the old vote response and construct them again 
+        // We throw out the old vote response and construct them again
         this.message = this.message.slice(0, this.getDividerId() + 1).concat(this.generateResults(false));
     }
 
