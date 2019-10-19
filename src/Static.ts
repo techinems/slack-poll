@@ -36,9 +36,7 @@ export class Static {
             parameters[i] = parameters[i].replace("&amp;", "+").replace("&lt;", "greater than ")
                 .replace("&gt;", "less than ");
             // We set value to empty string so that it is always defined
-            console.log(parameters[i]);
             const button: Button = { type: "button", value: " ", text: Static.buildTextElem(parameters[i]) };
-            console.log(button);
             actionBlocks[actionBlockCount].elements.push(button);
         }
         return actionBlocks;
