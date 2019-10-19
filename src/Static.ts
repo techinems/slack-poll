@@ -33,8 +33,8 @@ export class Static {
                 actionBlockCount++;
             }
             // Remove special characters, should be able to remove this once slack figures itself out
-            parameters[i] = parameters[i].replace("&amp;", "+").replace("&lt;", "greater than ")
-                .replace("&gt;", "less than ");
+            parameters[i] = parameters[i].replace("&amp;", "+").replace("&gt;", "greater than ")
+                .replace("&lt;", "less than ");
             // We set value to empty string so that it is always defined
             const button: Button = { type: "button", value: " ", text: Static.buildTextElem(parameters[i]) };
             actionBlocks[actionBlockCount].elements.push(button);
