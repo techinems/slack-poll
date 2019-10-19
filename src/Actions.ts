@@ -1,7 +1,10 @@
 import { Poll } from "./Poll";
-import { WebClient, WebAPICallResult } from "@slack/web-api";
+import { WebClient, WebAPICallResult, ChatPostMessageArguments } from "@slack/web-api";
 import { KnownBlock } from "@slack/types";
 import { Request, Response } from "express";
+import * as Sentry from "@sentry/node";
+
+const errorMsg = "An error occurred; please contact the administrators for assistance.";
 
 export class Actions {
     public static readonly BUTTON_ACTION = "button";
@@ -19,7 +22,7 @@ export class Actions {
     }
 
     public postMessage(channel: string, text: string, blocks: KnownBlock[], user?: string): Promise<WebAPICallResult> {
-        const msg: { channel: string; text: string; blocks: KnownBlock[]; as_user?: boolean; user?: string } = { channel, text, blocks };
+        const msg: ChatPostMessageArguments = { channel, text, blocks };
         if (user) {
             msg.user = user;
         } else {
@@ -29,37 +32,45 @@ export class Actions {
     }
 
     public onButtonAction(payload: any, res: (message: any) => Promise<unknown>): { text: string } {
-        const poll = new Poll(payload.message.blocks);
-        poll.vote(payload.actions[0].text.text, payload.user.id);
-        payload.message.blocks = poll.getBlocks();
-        payload.message.text = "Vote changed!";
-        // We respond with the new payload
-        res(payload.message);
-        // In case it is being slow users will see this message
-        return { text: "Vote processing!" };
+        try {
+            const poll = new Poll(payload.message.blocks);
+            poll.vote(payload.actions[0].text.text, payload.user.id);
+            payload.message.blocks = poll.getBlocks();
+            payload.message.text = "Vote changed!";
+            // We respond with the new payload
+            res(payload.message);
+            // In case it is being slow users will see this message
+            return { text: "Vote processing!" };
+        } catch(err) {
+            return this.handleActionException(err);
+        }
     }
 
     public onStaticSelectAction(payload: any, res: (message: any) => Promise<unknown>): { text: string } {
-        const poll = new Poll(payload.message.blocks);
-        switch (payload.actions[0].selected_option.value) {
-            case "reset":
-                this.onResetSelected(payload, poll);
-                break;
-            case "bottom":
-                this.onBottomSelected(payload, poll);
-                break;
-            case "lock":
-                this.onLockSelected(payload, poll);
-                break;
-            case "delete":
-                this.onDeleteSelected(payload, poll);
-                break;
-            case "collect":
-                this.onCollectSelected(payload, poll);
-                break;
+        try {
+            const poll = new Poll(payload.message.blocks);
+            switch (payload.actions[0].selected_option.value) {
+                case "reset":
+                    this.onResetSelected(payload, poll);
+                    break;
+                case "bottom":
+                    this.onBottomSelected(payload, poll);
+                    break;
+                case "lock":
+                    this.onLockSelected(payload, poll);
+                    break;
+                case "delete":
+                    this.onDeleteSelected(payload, poll);
+                    break;
+                case "collect":
+                    this.onCollectSelected(payload, poll);
+                    break;
+            }
+            res(payload.message);
+            return { text: "Processing request!" };
+        } catch (err) {
+            return this.handleActionException(err);
         }
-        res(payload.message);
-        return ({ text: "Processing request!" });
     }
 
     public async createPollRoute(req: Request, res: Response): Promise<void> {
@@ -75,8 +86,7 @@ export class Actions {
             await this.postMessage(req.body.channel_id, "A poll has been posted!", poll.getBlocks());
             res.send();
         } catch (err) {
-            console.error(err);
-            res.send(`Something went wrong: ${err}`);
+            res.send(this.handleActionException(err).text);
         }
     }
 
@@ -142,5 +152,11 @@ export class Actions {
 
     private static isPollAuthor(payload: any, poll: Poll): boolean {
         return `<@${payload.user.id}>` === poll.getAuthor();
+    }
+
+    private handleActionException(err: any): { text: string } {
+        Sentry.captureException(err);
+        console.error(err);
+        return { text: errorMsg };
     }
 }
