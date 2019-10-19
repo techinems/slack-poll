@@ -172,8 +172,6 @@ export class Poll {
     private buildVoteTally(overrideAnon: boolean, votes: any, key: string): SectionBlock | null {
         const users: string[] = votes[key].split(",");
         users.splice(0, 1);
-        // Don"t bother with empty votes
-        if (users.length === 0) return Static.buildSectionBlock(`*0* ${key} »`);
         // When anonymous we don"t display the user"s names
         const names = !this.anonymous || overrideAnon ? users.map((k: string) => `<@${k}>`).join(",") : "~HIDDEN~";
         return Static.buildSectionBlock(`*${users.length}* ${key} » ${names}`);
