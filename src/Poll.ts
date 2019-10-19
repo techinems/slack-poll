@@ -62,10 +62,6 @@ export class Poll {
                 PollHelpers.buildSelectOption("Delete poll", "delete")
             ]
         };
-        // If anonymous we want the author to be able to collect the poll results
-        if (optionArray[0].toLowerCase() === "anon" || optionArray[1].toLowerCase() === "anon") {
-            selection.options!.push(PollHelpers.buildSelectOption("Collect Results", "collect"));
-        }
         actionBlocks.push({ type: "actions", elements: [selection] });
         message = message.concat(actionBlocks);
         // Add a divider in between so later we can put the messages

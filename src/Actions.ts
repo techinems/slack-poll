@@ -62,9 +62,6 @@ export class Actions {
                 case "delete":
                     this.onDeleteSelected(payload, poll);
                     break;
-                case "collect":
-                    this.onCollectSelected(payload, poll);
-                    break;
             }
             res(payload.message);
             return { text: "Processing request!" };
@@ -132,17 +129,6 @@ export class Actions {
             payload.message.blocks = undefined;
         } else {
             this.postEphemeralOnlyAuthor("delete", "poll", payload.channel.id, payload.user.id);
-        }
-    }
-
-    private async onCollectSelected(payload: any, poll: Poll): Promise<void> {
-        payload.message.text = "Poll results collected!";
-        if (Actions.isPollAuthor(payload, poll)) {
-            const dm: any = await this.wc.conversations.open({ users: payload.user.id });
-            const msg = `${payload.message.blocks[0].text.text} *RESULTS (Confidential do not distribute)*`;
-            this.postMessage(dm.channel.id, msg, poll.collectResults(), payload.user.id);
-        } else {
-            this.postEphemeralOnlyAuthor("collect", "results", payload.channel.id, payload.user.id);
         }
     }
 
