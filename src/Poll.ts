@@ -124,7 +124,6 @@ export class Poll {
             } else if (button.text.text === buttonText && userIdIndex === -1) {
                 votes.push(userId);
             }
-            console.log(votes);
             button.value = votes.join(",");
             return false;
         });
@@ -177,7 +176,6 @@ export class Poll {
             votes[currentButton.text.text] = currentButton.value;
             return false;
         });
-        console.log(votes);
         const sections = [];
         for (const key in votes) {
             const currentSection = this.buildVoteTally(overrideAnon, votes, key);
