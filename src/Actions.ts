@@ -51,6 +51,9 @@ export class Actions {
             case "lock":
                 this.onLockSelected(payload, poll);
                 break;
+            case "unlock":
+                this.onUnlockSelected(payload,poll);
+                break;
             case "delete":
                 this.onDeleteSelected(payload, poll);
                 break;
@@ -113,6 +116,16 @@ export class Actions {
             payload.message.blocks = poll.getBlocks();
         } else {
             this.postEphemeralOnlyAuthor("lock", "poll", payload.channel.id, payload.user.id);
+        }
+    }
+    
+    private onUnlockSelected(payload: any, poll: Poll): void {
+        payload.message.text = "Poll unlocked!";
+        if (Actions.isPollAuthor(payload,poll)) {
+            poll.unlockpoll();
+            payload.message.blocks = poll.getBlocks();
+        } else{
+            this.postEphemeralOnlyAuthor("unlock","poll",payload.channel.id, payload.user.id);
         }
     }
 

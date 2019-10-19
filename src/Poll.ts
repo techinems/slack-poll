@@ -34,23 +34,8 @@ export class Poll {
 
         const titleBlock = Static.buildSectionBlock(mrkdwnValue);
         message.push(titleBlock, Static.buildContextBlock(`Asked by: ${author}`));
-        const actionBlocks: ActionsBlock[] = [{ type: "actions", elements: [] }];
-        let actionBlockCount = 0;
-        // Construct all the buttons
         const start = titleBlock.text!.text === parameters[0] ? 1 : 2;
-        for (let i = start; i < parameters.length; i++) {
-            if (i % 5 === 0) {
-                const newActionBlock: ActionsBlock = { type: "actions", elements: [] };
-                actionBlocks.push(newActionBlock);
-                actionBlockCount++;
-            }
-            // Remove special characters, should be able to remove this once slack figures itself out
-            parameters[i] = parameters[i].replace("&amp;", "+").replace("&lt;", "greater than ")
-                .replace("&gt;", "less than ");
-            // We set value to empty string so that it is always defined
-            const button: Button = { type: "button", value: " ", text: Static.buildTextElem(parameters[i]) };
-            actionBlocks[actionBlockCount].elements.push(button);
-        }
+        const actionBlocks = Static.buildVoteOptions(parameters,start);
         // The various poll options
         const selection: StaticSelect = {
             type: "static_select",
@@ -104,6 +89,20 @@ export class Poll {
         return { votes, userIdIndex: votes.indexOf(userId) };
     }
 
+    private getDynamicSelect(): ActionsBlock[] {
+        const selection: StaticSelect = {
+            type: "static_select",
+            placeholder: Static.buildTextElem("Poll Options"),
+            options: [
+                Static.buildSelectOption("Reset your vote", "reset"),
+                this.isLocked ? Static.buildSelectOption(":unlock: Unlock poll", "unlock") : Static.buildSelectOption(":lock: Lock poll", "lock"),
+                Static.buildSelectOption("Move to bottom", "bottom"),
+                Static.buildSelectOption("Delete poll", "delete")
+            ]
+        };
+        return [{ type: "actions", elements: [selection] }];
+    }
+
     public resetVote(userId: string): void {
         this.processButtons(this.message.length, button => {
             const { votes, userIdIndex } = this.getVotesAndUserIndex(button, userId);
@@ -131,11 +130,22 @@ export class Poll {
     }
 
     public lockPoll(): void {
-        if (this.isLocked) return;
         this.isLocked = true;
         this.generateVoteResults();
-        this.message = this.message.slice(0, 2).concat(this.message.slice(this.getDividerId() - 1));
+        this.message = this.message.slice(0, 2).concat(this.getDynamicSelect()).concat(this.message.slice(this.getDividerId()));
         // ((this.message[2] as ActionsBlock).elements[0] as StaticSelect).options!.splice(0, 2);
+    }
+
+    public unlockpoll(): void {
+        const voteoptions = [];
+        const results = this.message.slice(this.getDividerId()+2);
+        for (let i = 0; i < results.length; i++) {
+            const option = ((results[i] as SectionBlock).text as MrkdwnElement).text;
+           voteoptions.push(option.substr(option.indexOf("* "), option.indexOf(" »")).slice(2,-2));
+        }
+        const actionBlocks = Static.buildVoteOptions(voteoptions,0);
+        this.isLocked = false;
+        this.message = this.message.slice(0,2).concat(actionBlocks).concat(this.getDynamicSelect()).concat({ type: "divider" }).concat(this.message.slice(this.getDividerId()+2));
     }
 
     // Creates the message that will be sent to the poll author with the final results
@@ -163,7 +173,7 @@ export class Poll {
         const users: string[] = votes[key].split(",");
         users.splice(0, 1);
         // Don"t bother with empty votes
-        if (users.length === 0) return null;
+        if (users.length === 0) return Static.buildSectionBlock(`*0* ${key} »`);
         // When anonymous we don"t display the user"s names
         const names = !this.anonymous || overrideAnon ? users.map((k: string) => `<@${k}>`).join(",") : "~HIDDEN~";
         return Static.buildSectionBlock(`*${users.length}* ${key} » ${names}`);
