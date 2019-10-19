@@ -124,6 +124,7 @@ export class Poll {
             } else if (button.text.text === buttonText && userIdIndex === -1) {
                 votes.push(userId);
             }
+            console.log(votes);
             button.value = votes.join(",");
             return false;
         });
