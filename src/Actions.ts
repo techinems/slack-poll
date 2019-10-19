@@ -48,8 +48,8 @@ export class Actions {
             case "bottom":
                 this.onBottomSelected(payload, poll);
                 break;
-            case "lock":
-                this.onLockSelected(payload, poll);
+            case "close":
+                this.onCloseSelected(payload, poll);
                 break;
             case "delete":
                 this.onDeleteSelected(payload, poll);
@@ -82,10 +82,10 @@ export class Actions {
 
     private onResetSelected(payload: any, poll: Poll): void {
         payload.message.text = "Vote reset!";
-        if (poll.getLockedStatus()) {
+        if (poll.getClosedStatus()) {
             this.wc.chat.postEphemeral({
                 channel: payload.channel.id,
-                text: "You cannot reset your vote after the poll has been locked.", user: payload.user.id
+                text: "You cannot reset your vote after the poll has been closed.", user: payload.user.id
             });
         } else {
             poll.resetVote(payload.user.id);
@@ -106,13 +106,13 @@ export class Actions {
         }
     }
 
-    private onLockSelected(payload: any, poll: Poll): void {
-        payload.message.text = "Poll locked!";
+    private onCloseSelected(payload: any, poll: Poll): void {
+        payload.message.text = "Poll is closed!";
         if (Actions.isPollAuthor(payload, poll)) {
-            poll.lockPoll();
+            poll.closePoll();
             payload.message.blocks = poll.getBlocks();
         } else {
-            this.postEphemeralOnlyAuthor("lock", "poll", payload.channel.id, payload.user.id);
+            this.postEphemeralOnlyAuthor("close", "poll", payload.channel.id, payload.user.id);
         }
     }
 

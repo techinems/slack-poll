@@ -57,7 +57,7 @@ export class Poll {
             placeholder: Static.buildTextElem("Poll Options"),
             options: [
                 Static.buildSelectOption("Reset your vote", "reset"),
-                Static.buildSelectOption(":lock: Lock poll", "lock"),
+                Static.buildSelectOption("Close the poll", "close"),
                 Static.buildSelectOption("Move to bottom", "bottom"),
                 Static.buildSelectOption("Delete poll", "delete")
             ]
@@ -77,14 +77,14 @@ export class Poll {
     private message: KnownBlock[] = [];
     private multiple = false;
     private anonymous = false;
-    private isLocked = false;
+    private isClosed = false;
     constructor(message: KnownBlock[]) {
         this.message = message;
         // Since its databaseless the way we know if it is anonymous or multiple is by parsing the title
         this.multiple = this.checkIfMsgContains("(Multiple Answers)");
         this.anonymous = this.checkIfMsgContains("(Anonymous)");
-        // If there's no buttons then the poll is locked
-        this.isLocked = this.message[3].type === "divider";
+        // If there's no buttons then the poll is closed
+        this.isClosed = this.message[3].type === "divider";
     }
 
     public getBlocks(): KnownBlock[] {
@@ -95,8 +95,8 @@ export class Poll {
         return ((this.message[1] as ContextBlock).elements[0] as PlainTextElement).text.replace("Asked by: ", "");
     }
 
-    public getLockedStatus(): boolean {
-        return this.isLocked;
+    public getClosedStatus(): boolean {
+        return this.isClosed;
     }
 
     private getVotesAndUserIndex(button: Button, userId: string): { votes: string[]; userIdIndex: number } {
@@ -130,9 +130,9 @@ export class Poll {
         this.generateVoteResults();
     }
 
-    public lockPoll(): void {
-        if (this.isLocked) return;
-        this.isLocked = true;
+    public closePoll(): void {
+        if (this.isClosed) return;
+        this.isClosed = true;
         this.generateVoteResults();
         this.message = this.message.slice(0, 2).concat(this.message.slice(this.getDividerId() - 1));
         // ((this.message[2] as ActionsBlock).elements[0] as StaticSelect).options!.splice(0, 2);
@@ -178,7 +178,7 @@ export class Poll {
             return false;
         });
         const sections = Object.keys(votes).map(key => this.buildVoteTally(overrideAnon, votes, key) as SectionBlock);
-        if (this.isLocked) sections.unshift(Static.buildSectionBlock(":lock:"));
+        if (this.isClosed) sections.unshift(Static.buildSectionBlock(":lock:"));
         return sections;
     }
 
