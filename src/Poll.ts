@@ -136,7 +136,6 @@ export class Poll {
         this.isLocked = true;
         this.generateVoteResults();
         this.message = this.message.slice(0, 2).concat(this.message.slice(this.getDividerId() - 1));
-        // ((this.message[2] as ActionsBlock).elements[0] as StaticSelect).options!.splice(0, 2);
     }
 
     // Creates the message that will be sent to the poll author with the final results
@@ -185,7 +184,9 @@ export class Poll {
 
     private generateVoteResults(): void {
         // We throw out the old vote response and construct them again 
-        this.message = this.message.slice(0, this.getDividerId() + 1).concat(this.generateResults(false));
+        const sectionBlocks = this.generateResults(false);
+        console.log(sectionBlocks);
+        this.message = this.message.slice(0, this.getDividerId() + 1).concat(sectionBlocks);
     }
 
     private getDividerId(): number {
