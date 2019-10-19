@@ -177,6 +177,7 @@ export class Poll {
             votes[currentButton.text.text] = currentButton.value;
             return false;
         });
+        console.log(votes);
         const sections = Object.keys(votes).map(key => this.buildVoteTally(overrideAnon, votes, key) as SectionBlock);
         if (this.isLocked) sections.unshift(PollHelpers.buildSectionBlock(":lock:"));
         return sections;
@@ -185,7 +186,6 @@ export class Poll {
     private generateVoteResults(): void {
         // We throw out the old vote response and construct them again 
         const sectionBlocks = this.generateResults(false);
-        console.log(sectionBlocks);
         this.message = this.message.slice(0, this.getDividerId() + 1).concat(sectionBlocks);
     }
 
