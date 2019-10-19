@@ -68,7 +68,7 @@ export class Poll {
         // Since its databaseless the way we know if it is anonymous or multiple is by parsing the title
         this.multiple = this.checkIfMsgContains("(Multiple Answers)");
         this.anonymous = this.checkIfMsgContains("(Anonymous)");
-        //if the is a lock symbol right below the divider, the poll is locked
+        //if there is a lock symbol right below the divider, the poll is locked
         if (this.message.length-1 !== this.getDividerId()) {
             this.isLocked = ((this.message[this.getDividerId()+1] as SectionBlock).text as MrkdwnElement).text === ":lock:";
         }
