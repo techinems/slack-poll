@@ -1,7 +1,14 @@
 import {
-    KnownBlock, SectionBlock, ContextBlock, Button, ActionsBlock, StaticSelect, PlainTextElement, MrkdwnElement
+    ActionsBlock,
+    Button,
+    ContextBlock,
+    KnownBlock,
+    MrkdwnElement,
+    PlainTextElement,
+    SectionBlock,
+    StaticSelect
 } from "@slack/types";
-import { PollHelpers } from "./PollHelpers";
+import {PollHelpers} from "./PollHelpers";
 import * as Sentry from "@sentry/node";
 
 export class Poll {
@@ -11,6 +18,23 @@ export class Poll {
     private checkIfMsgContains(value: string): boolean {
         return this.getTitleFromMsg().includes(value);
     }
+
+    private message: KnownBlock[] = [];
+    private multiple = false;
+    private anonymous = false;
+    private isLocked = false;
+
+    constructor(message: KnownBlock[]) {
+        this.message = message;
+        // Since its databaseless the way we know if it is anonymous or multiple is by parsing the title
+        this.multiple = this.checkIfMsgContains("(Multiple Answers)");
+        this.anonymous = this.checkIfMsgContains("(Anonymous)");
+        // If there's no buttons then the poll is locked
+        if (this.message.length - 1 !== this.getDividerId()) {
+            this.isLocked = ((this.message[this.getDividerId() + 1] as SectionBlock).text as MrkdwnElement).text === ":lock:";
+        }
+    }
+
     static slashCreate(author: string, parameters: string[]): Poll {
         if (process.env.SENTRY_DSN) {
             Sentry.configureScope(scope => {
@@ -34,23 +58,9 @@ export class Poll {
 
         const titleBlock = PollHelpers.buildSectionBlock(mrkdwnValue);
         message.push(titleBlock, PollHelpers.buildContextBlock(`Asked by: ${author}`));
-        const actionBlocks: ActionsBlock[] = [{ type: "actions", elements: [] }];
-        let actionBlockCount = 0;
         // Construct all the buttons
         const start = titleBlock.text!.text === parameters[0] ? 1 : 2;
-        for (let i = start; i < parameters.length; i++) {
-            if (i % 5 === 0) {
-                const newActionBlock: ActionsBlock = { type: "actions", elements: [] };
-                actionBlocks.push(newActionBlock);
-                actionBlockCount++;
-            }
-            // Remove special characters, should be able to remove this once slack figures itself out
-            parameters[i] = parameters[i].replace("&amp;", "+").replace("&gt;", "greater than ")
-                .replace("&lt;", "less than ");
-            // We set value to empty string so that it is always defined
-            const button: Button = { type: "button", value: " ", text: PollHelpers.buildTextElem(parameters[i]) };
-            actionBlocks[actionBlockCount].elements.push(button);
-        }
+        const actionBlocks = PollHelpers.buildVoteOptions(parameters, start);
         // The various poll options
         const selection: StaticSelect = {
             type: "static_select",
@@ -70,19 +80,6 @@ export class Poll {
         return new Poll(message);
     }
 
-    private message: KnownBlock[] = [];
-    private multiple = false;
-    private anonymous = false;
-    private isLocked = false;
-    constructor(message: KnownBlock[]) {
-        this.message = message;
-        // Since its databaseless the way we know if it is anonymous or multiple is by parsing the title
-        this.multiple = this.checkIfMsgContains("(Multiple Answers)");
-        this.anonymous = this.checkIfMsgContains("(Anonymous)");
-        // If there's no buttons then the poll is locked
-        this.isLocked = this.message[3].type === "divider";
-    }
-
     public getBlocks(): KnownBlock[] {
         return this.message;
     }
@@ -100,19 +97,8 @@ export class Poll {
         return { votes, userIdIndex: votes.indexOf(userId) };
     }
 
-    public resetVote(userId: string): void {
-        this.processButtons(this.message.length, button => {
-            const { votes, userIdIndex } = this.getVotesAndUserIndex(button, userId);
-            if (userIdIndex === -1) return false;
-            votes.splice(userIdIndex, 1);
-            button.value = votes.join(",");
-            // Optimization: why search the rest if we know they only have one vote?
-            return !this.multiple;
-        });
-        this.generateVoteResults();
-    }
-
     public vote(buttonText: string, userId: string): void {
+        if (this.isLocked) return;
         this.processButtons(this.message.length, button => {
             const { votes, userIdIndex } = this.getVotesAndUserIndex(button, userId);
             if (!this.multiple && userIdIndex > -1 && button.text.text !== buttonText) {
@@ -126,11 +112,42 @@ export class Poll {
         this.generateVoteResults();
     }
 
+
+    public resetVote(userId: string): void {
+        this.processButtons(this.message.length, button => {
+            const {votes, userIdIndex} = this.getVotesAndUserIndex(button, userId);
+            if (userIdIndex === -1) return false;
+            votes.splice(userIdIndex, 1);
+            button.value = votes.join(",");
+            // Optimization: why search the rest if we know they only have one vote?
+            return !this.multiple;
+        });
+        this.generateVoteResults();
+    }
+
     public lockPoll(): void {
-        if (this.isLocked) return;
         this.isLocked = true;
         this.generateVoteResults();
-        this.message = this.message.slice(0, 2).concat(this.message.slice(this.getDividerId() - 1));
+        this.message = this.message.slice(0, this.getDividerId() - 1).concat(this.getDynamicSelect()).concat(this.message.slice(this.getDividerId()));
+    }
+
+    public unlockpoll(): void {
+        this.isLocked = false;
+        this.message = this.message.slice(0, this.getDividerId() - 1).concat(this.getDynamicSelect()).concat({type: "divider"}).concat(this.message.slice(this.getDividerId() + 2));
+    }
+
+    private getDynamicSelect(): ActionsBlock[] {
+        const selection: StaticSelect = {
+            type: "static_select",
+            placeholder: PollHelpers.buildTextElem("Poll Options"),
+            options: [
+                PollHelpers.buildSelectOption("Reset your vote", "reset"),
+                this.isLocked ? PollHelpers.buildSelectOption(":unlock: Unlock poll", "unlock") : PollHelpers.buildSelectOption(":lock: Lock poll", "lock"),
+                PollHelpers.buildSelectOption("Move to bottom", "bottom"),
+                PollHelpers.buildSelectOption("Delete poll", "delete")
+            ]
+        };
+        return [{type: "actions", elements: [selection]}];
     }
 
     // Creates the message that will be sent to the poll author with the final results
@@ -140,6 +157,7 @@ export class Poll {
             PollHelpers.buildSectionBlock(`${this.getTitleFromMsg()} *RESULTS (Confidential: do not distribute)*`)
         ].concat(results);
     }
+
 
     private processButtons(loopEnd: number, buttonCallback: (b: Button) => boolean): void {
         for (let i = 2; i < loopEnd; i++) {
@@ -179,7 +197,7 @@ export class Poll {
         }
         // const sections = Object.keys(votes).map(key => this.buildVoteTally(overrideAnon, votes, key));
         if (this.isLocked) sections.unshift(PollHelpers.buildSectionBlock(":lock:"));
-        return sections;
+        return sections.filter(f => f !== null);
     }
 
     private generateVoteResults(): void {
