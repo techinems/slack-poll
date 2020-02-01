@@ -44,9 +44,6 @@ export class Poll {
                 actionBlocks.push(newActionBlock);
                 actionBlockCount++;
             }
-            // Remove special characters, should be able to remove this once slack figures itself out
-            parameters[i] = parameters[i].replace("&", "+").replace(">", "greater than ")
-                .replace("<", "less than ");
             // We set value to empty string so that it is always defined
             const button: Button = { type: "button", value: " ", text: PollHelpers.buildTextElem(parameters[i]) };
             actionBlocks[actionBlockCount].elements.push(button);
@@ -149,6 +146,8 @@ export class Poll {
             for (let j = 0; j < currentBlock.elements.length; j++) {
                 if (currentBlock.elements[j].type !== "button") continue;
                 const button = currentBlock.elements[j] as Button;
+                button.text.text = button.text.text.replace("&lt;","<")
+                    .replace("&gt;",">").replace("&amp;","&");
                 if (buttonCallback(button)) break;
             }
         }
