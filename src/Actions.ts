@@ -34,6 +34,8 @@ export class Actions {
     public onButtonAction(payload: any, res: (message: any) => Promise<unknown>): { text: string } {
         try {
             const poll = new Poll(payload.message.blocks);
+            payload.actions[0].text.text = payload.actions[0].text.text.replace("&lt;","<")
+                .replace("&gt;",">").replace("&amp;","&");
             poll.vote(payload.actions[0].text.text, payload.user.id);
             payload.message.blocks = poll.getBlocks();
             payload.message.text = "Vote changed!";
