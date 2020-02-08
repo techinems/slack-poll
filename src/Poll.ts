@@ -1,7 +1,14 @@
 import {
-    KnownBlock, SectionBlock, ContextBlock, Button, ActionsBlock, StaticSelect, PlainTextElement, MrkdwnElement
+    ActionsBlock,
+    Button,
+    ContextBlock,
+    KnownBlock,
+    MrkdwnElement,
+    PlainTextElement,
+    SectionBlock,
+    StaticSelect
 } from "@slack/types";
-import { PollHelpers } from "./PollHelpers";
+import {PollHelpers} from "./PollHelpers";
 import * as Sentry from "@sentry/node";
 
 export class Poll {
@@ -81,7 +88,10 @@ export class Poll {
     }
 
     public getBlocks(): KnownBlock[] {
-        return this.message;
+        let str = JSON.stringify(this.message);
+        str = str.replace("&lt;", "<")
+            .replace("&gt;", ">").replace("&amp;", "&");
+        return JSON.parse(str);
     }
 
     public getAuthor(): string {
