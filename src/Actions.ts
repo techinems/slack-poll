@@ -1,7 +1,7 @@
-import { Poll } from "./Poll";
-import { WebClient, WebAPICallResult, ChatPostMessageArguments } from "@slack/web-api";
-import { KnownBlock } from "@slack/types";
-import { Request, Response } from "express";
+import {Poll} from "./Poll";
+import {ChatPostMessageArguments, ChatUpdateArguments, WebAPICallResult, WebClient} from "@slack/web-api";
+import {KnownBlock} from "@slack/types";
+import {Request, Response} from "express";
 import * as Sentry from "@sentry/node";
 
 const errorMsg = "An error occurred; please contact the administrators for assistance.";
@@ -109,7 +109,13 @@ export class Actions {
             await this.wc.chat.delete({ channel: payload.channel.id, ts: payload.message.ts })
                 .catch((err: any) => console.error(err));
             // Must be artificially slowed down to prevent the poll from glitching out on Slack's end
-            setTimeout(() => this.postMessage(payload.channel.id, payload.message.text, payload.message.blocks), 300);
+            setTimeout(() => this.postMessage(payload.channel.id, "Poll Moved!", []).then((res: any) => {
+                const msg: ChatUpdateArguments = {
+                    channel: payload.channel.id, text: payload.message.text,
+                    ts: res.ts, blocks: payload.message.blocks
+                };
+                this.wc.chat.update(msg);
+            }), 300);
         } else {
             this.postEphemeralOnlyAuthor("move", "poll", payload.channel.id, payload.user.id);
         }
