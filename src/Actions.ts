@@ -1,4 +1,4 @@
-import { Poll } from "./Poll"
+import { Poll } from "./Poll";
 import { ChatPostMessageArguments, ChatUpdateArguments, WebAPICallResult, WebClient } from "@slack/web-api";
 import { KnownBlock } from "@slack/types";
 import { Request, Response } from "express";
