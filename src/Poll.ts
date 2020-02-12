@@ -1,7 +1,7 @@
 import {
     ActionsBlock, Button, ContextBlock, KnownBlock, MrkdwnElement, PlainTextElement, SectionBlock, StaticSelect
 } from "@slack/types";
-import {PollHelpers} from "./PollHelpers";
+import { PollHelpers } from "./PollHelpers";
 import * as Sentry from "@sentry/node";
 
 export class Poll {
