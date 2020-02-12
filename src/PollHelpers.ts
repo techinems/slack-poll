@@ -1,4 +1,4 @@
-import { SectionBlock, ContextBlock, PlainTextElement, Option } from "@slack/types";
+import { ContextBlock, Option, PlainTextElement, SectionBlock } from "@slack/types";
 
 export class PollHelpers {
     public static appendIfMatching(optionArray: string[], keyword: string, appendText: string): string {
