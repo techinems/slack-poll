@@ -1,12 +1,5 @@
 import {
-    ActionsBlock,
-    Button,
-    ContextBlock,
-    KnownBlock,
-    MrkdwnElement,
-    PlainTextElement,
-    SectionBlock,
-    StaticSelect
+    ActionsBlock, Button, ContextBlock, KnownBlock, MrkdwnElement, PlainTextElement, SectionBlock, StaticSelect
 } from "@slack/types";
 import {PollHelpers} from "./PollHelpers";
 import * as Sentry from "@sentry/node";
@@ -192,7 +185,7 @@ export class Poll {
     }
 
     private generateVoteResults(): void {
-        // We throw out the old vote response and construct them again 
+        // We throw out the old vote response and construct them again
         const sectionBlocks = this.generateResults(false);
         this.message = this.message.slice(0, this.getDividerId() + 1).concat(sectionBlocks);
     }
