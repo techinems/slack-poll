@@ -21,13 +21,8 @@ export class Actions {
         this.createPollRoute = this.createPollRoute.bind(this);
     }
 
-    public postMessage(channel: string, text: string, blocks: KnownBlock[], user?: string): Promise<WebAPICallResult> {
+    public postMessage(channel: string, text: string, blocks: KnownBlock[]): Promise<WebAPICallResult> {
         const msg: ChatPostMessageArguments = { channel, text, blocks };
-        if (user) {
-            msg.user = user;
-        } else {
-            msg.as_user = false;
-        }
         return this.wc.chat.postMessage(msg);
     }
 
@@ -85,7 +80,12 @@ export class Actions {
             await this.postMessage(req.body.channel_id, "A poll has been posted!", poll.getBlocks());
             res.send();
         } catch (err) {
-            res.send(this.handleActionException(err).text);
+            // Better handling of when the bot isn't invited to the channel
+            if (err.data.error === "not_in_channel") {
+                res.send("Bot must be invited to the channel before you can use it!");
+            } else {
+                res.send(this.handleActionException(err).text);
+            }
         }
     }
 
