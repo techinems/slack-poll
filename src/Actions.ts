@@ -3,6 +3,7 @@ import { ChatPostMessageArguments, ChatUpdateArguments, WebAPICallResult, WebCli
 import { KnownBlock } from "@slack/types";
 import { Request, Response } from "express";
 import * as Sentry from "@sentry/node";
+import { PollModal } from "./PollModal";
 
 const errorMsg = "An error occurred; please contact the administrators for assistance.";
 
@@ -24,6 +25,14 @@ export class Actions {
     public postMessage(channel: string, text: string, blocks: KnownBlock[]): Promise<WebAPICallResult> {
         const msg: ChatPostMessageArguments = { channel, text, blocks };
         return this.wc.chat.postMessage(msg);
+    }
+
+    public displayModal(triggerId: string): Promise<WebAPICallResult> {
+        const modal = new PollModal(triggerId);
+        return this.wc.views.open({
+            trigger_id: triggerId,
+            view: modal.constructModalView(),
+        });
     }
 
     public onButtonAction(payload: any, res: (message: any) => Promise<unknown>): { text: string } {
@@ -71,6 +80,22 @@ export class Actions {
         if (req.body.command !== "/inorout") {
             console.error(`Unregistered command ${req.body.command}`);
             res.send("Unhandled command");
+            return;
+        }
+
+        // If the user just did /inorout we enter modal mode
+        if (req.body.text.trim().length === 0) {
+            try {
+                await this.displayModal(req.body.trigger_id);
+                res.send();
+            } catch (err) {
+                // Better handling of when the bot isn't invited to the channel
+                if (err.data.error === "not_in_channel") {
+                    res.send("Bot must be invited to the channel before you can use it!");
+                } else {
+                    res.send(this.handleActionException(err).text);
+                }
+            }
             return;
         }
 
