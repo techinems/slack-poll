@@ -33,6 +33,7 @@ export class PollHelpers {
     public static buildInputElem(placeHolderText: string, labelText: string, actionId: string): InputBlock {
         return {
             type: "input",
+            block_id: `bid_${actionId}`,
             element: {
                 type: "plain_text_input",
                 action_id: actionId,

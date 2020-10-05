@@ -1,19 +1,22 @@
 import { KnownBlock, Block, PlainTextElement, InputBlock, View, Checkboxes } from "@slack/types";
-import { text } from "body-parser";
 import { PollHelpers } from "./PollHelpers";
+
+// This will hold all currently opened modals in memory
+// It maps view id to modal object
+export const ModalMap: Map<string, PollModal> = new Map();
 
 export class PollModal {
   private num_options: number;
-  private trigger_id: string;
   private title: PlainTextElement;
   private submit: PlainTextElement;
   private options: InputBlock[];
+  private channel_id: string;
   private blocks: (KnownBlock | Block)[];
 
-  // Every modal must have a trigger id according to slack
-  constructor (trigger_id: string) {
+  // Modals have no sense of channel id so we must storei t
+  constructor (channel_id: string) {
+    this.channel_id = channel_id;
     this.num_options = 2;
-    this.trigger_id = trigger_id;
     this.options = [];
     this.blocks = [];
 
@@ -29,14 +32,17 @@ export class PollModal {
     this.options.push(PollHelpers.buildInputElem(optionString, optionString, action_id));
   }
 
+  public getChannelId(): string { return this.channel_id; }
+
   private static constructModalCheckboxes(): Checkboxes {
     return {
       type: "checkboxes",
+      action_id: "modal_checkboxes",
       options: [
         {
           text: PollHelpers.buildTextElem("Anonymous?"),
           description: PollHelpers.buildTextElem("Makes poll responses anonymous"),
-          value: "anonymous",
+          value: "anon",
         },
         {
           text: PollHelpers.buildTextElem("Multiple Responses?"),
@@ -49,10 +55,12 @@ export class PollModal {
 
   // Creates the initial modal view
   public constructModalView(): View {
+    this.blocks = [];
     this.blocks.push(PollHelpers.buildInputElem("Poll Title", "Title", "title"));
     this.blocks = this.blocks.concat(this.options);
     this.blocks.push({
       type: "actions",
+      block_id: "modal_actions",
       elements: [
         PollHelpers.buildButton("Add another option", undefined, "add_option"),
         PollModal.constructModalCheckboxes(),
@@ -63,6 +71,7 @@ export class PollModal {
       type: "modal",
       blocks: this.blocks,
       submit: this.submit,
+      notify_on_close: true,
     };
   }
 }
