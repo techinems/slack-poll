@@ -21,6 +21,7 @@ export class Actions {
         this.onStaticSelectAction = this.onStaticSelectAction.bind(this);
         this.onModalAction = this.onModalAction.bind(this);
         this.createPollRoute = this.createPollRoute.bind(this);
+        this.submitModal = this.submitModal.bind(this);
     }
 
     public postMessage(channel: string, text: string, blocks: KnownBlock[]): Promise<WebAPICallResult> {
@@ -44,7 +45,6 @@ export class Actions {
         // We don't do anything if viewID is invalid
         if (!currentModal) return { text: "Modal not found!" };
         if (actionId === "add_option") {
-            console.log(payload.view.id);
             currentModal.addOption();
             this.wc.views.update({
                 view_id: payload.view.id,
@@ -65,12 +65,16 @@ export class Actions {
         const form_values = payload.view.state.values;
         // This will hold the options for the poll
         const poll_options: string[] = [];
+        let options_string = "";
         const poll_author = `<@${payload.user.id}>`;
         const checkboxes = form_values.modal_actions.modal_checkboxes.selected_options;
         // Add the value of the checbkox to the poll options
         for (const check_option of checkboxes) {
-            poll_options.push(check_option.value);
+            options_string += `${check_option.value} `;
         }
+        options_string = options_string.trim();
+        
+        if (options_string.length > 0) poll_options.push(options_string);
         // We've taken care of the checkboxes so we now remove that key
         delete form_values.modal_actions;
 
@@ -83,7 +87,7 @@ export class Actions {
 
 
         const poll = Poll.slashCreate(poll_author, poll_options);
-        this.postMessage(modal.getChannelId(), "A poll has been posted!", poll.getBlocks()).then(() => this.closeModal(payload.view.id));
+        this.postMessage(modal.getChannelId(), "A poll has been posted!", poll.getBlocks()).then(() => this.closeModal(payload.view.id)).catch((err) => console.error(err));
 
         return { response_action: "clear" };
     }
