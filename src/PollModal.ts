@@ -74,4 +74,30 @@ export class PollModal {
       notify_on_close: true,
     };
   }
+
+  // Takes the submission object from slack and returns poll parmaters 
+  public static submissionToPollParams(submittedState: any): string[] {
+    // This will hold the options for the poll
+    const poll_options: string[] = [];
+    let options_string = "";
+    const checkboxes = submittedState.modal_actions.modal_checkboxes.selected_options;
+    // Add the value of the checbkox to the poll options
+    for (const check_option of checkboxes) {
+        options_string += `${check_option.value} `;
+    }
+    options_string = options_string.trim();
+    
+    if (options_string.length > 0) poll_options.push(options_string);
+    // We've taken care of the checkboxes so we now remove that key
+    delete submittedState.modal_actions;
+
+    // The way slack structures data in blockkit we need a double for loop
+    for (const section in submittedState) {
+        for (const field in submittedState[section]) {
+            poll_options.push(submittedState[section][field].value);
+        }
+    }
+
+    return poll_options;
+  }
 }

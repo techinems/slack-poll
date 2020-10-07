@@ -63,29 +63,8 @@ export class Actions {
         
         if (!modal) return { response_action: "clear" };
         const form_values = payload.view.state.values;
-        // This will hold the options for the poll
-        const poll_options: string[] = [];
-        let options_string = "";
         const poll_author = `<@${payload.user.id}>`;
-        const checkboxes = form_values.modal_actions.modal_checkboxes.selected_options;
-        // Add the value of the checbkox to the poll options
-        for (const check_option of checkboxes) {
-            options_string += `${check_option.value} `;
-        }
-        options_string = options_string.trim();
-        
-        if (options_string.length > 0) poll_options.push(options_string);
-        // We've taken care of the checkboxes so we now remove that key
-        delete form_values.modal_actions;
-
-        // The way slack structures data in blockkit we need a double for loop
-        for (const section in form_values) {
-            for (const field in form_values[section]) {
-                poll_options.push(form_values[section][field].value);
-            }
-        }
-
-
+        const poll_options = PollModal.submissionToPollParams(form_values);
         const poll = Poll.slashCreate(poll_author, poll_options);
         this.postMessage(modal.getChannelId(), "A poll has been posted!", poll.getBlocks()).then(() => this.closeModal(payload.view.id)).catch((err) => console.error(err));
 
@@ -141,25 +120,16 @@ export class Actions {
         }
 
         // If the user just did /inorout we enter modal mode
-        if (req.body.text.trim().length === 0) {
-            try {
-                await this.displayModal(req.body.channel_id, req.body.trigger_id);
-                res.send();
-            } catch (err) {
-                // Better handling of when the bot isn't invited to the channel
-                if (err.data.error === "not_in_channel") {
-                    res.send("Bot must be invited to the channel before you can use it!");
-                } else {
-                    res.send(this.handleActionException(err).text);
-                }
-            }
-            return;
-        }
+        const iniateModal = req.body.trim().length == 0;
 
-        // Create a new poll passing in the poll author and the other params
-        const poll = Poll.slashCreate(`<@${req.body.user_id}>`, req.body.text.replace("@channel", "").replace("@everyone", "").replace("@here", "").split("\n"));
         try {
-            await this.postMessage(req.body.channel_id, "A poll has been posted!", poll.getBlocks());
+            if (!iniateModal) {
+                // Create a new poll passing in the poll author and the other params
+                const poll = Poll.slashCreate(`<@${req.body.user_id}>`, req.body.text.replace("@channel", "").replace("@everyone", "").replace("@here", "").split("\n"));
+                await this.postMessage(req.body.channel_id, "A poll has been posted!", poll.getBlocks());
+            } else {
+                await this.displayModal(req.body.channel_id, req.body.trigger_id);
+            }
             res.send();
         } catch (err) {
             // Better handling of when the bot isn't invited to the channel
