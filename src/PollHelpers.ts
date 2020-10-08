@@ -1,4 +1,4 @@
-import { ContextBlock, Option, PlainTextElement, SectionBlock } from "@slack/types";
+import { Button, ContextBlock, InputBlock, Option, PlainTextElement, SectionBlock } from "@slack/types";
 
 export class PollHelpers {
     public static appendIfMatching(optionArray: string[], keyword: string, appendText: string): string {
@@ -19,5 +19,27 @@ export class PollHelpers {
 
     public static buildTextElem(text: string): PlainTextElement {
         return { type: "plain_text", text, emoji: true };
+    }
+
+    public static buildButton(buttonText: string, value?: string, actionId?: string): Button {
+        return {
+            type: "button",
+            value: value,
+            action_id: actionId,
+            text: PollHelpers.buildTextElem(buttonText),
+        };
+    }
+
+    public static buildInputElem(placeHolderText: string, labelText: string, actionId: string): InputBlock {
+        return {
+            type: "input",
+            block_id: `bid_${actionId}`,
+            element: {
+                type: "plain_text_input",
+                action_id: actionId,
+                placeholder: PollHelpers.buildTextElem(placeHolderText),
+            },
+            label: PollHelpers.buildTextElem(labelText),
+        };
     }
 }

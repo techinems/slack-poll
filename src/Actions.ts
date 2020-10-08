@@ -3,6 +3,7 @@ import { ChatPostMessageArguments, ChatUpdateArguments, WebAPICallResult, WebCli
 import { KnownBlock } from "@slack/types";
 import { Request, Response } from "express";
 import * as Sentry from "@sentry/node";
+import { PollModal, ModalMap } from "./PollModal";
 
 const errorMsg = "An error occurred; please contact the administrators for assistance.";
 
@@ -18,17 +19,56 @@ export class Actions {
         // These are called in server.ts without scoping
         this.onButtonAction = this.onButtonAction.bind(this);
         this.onStaticSelectAction = this.onStaticSelectAction.bind(this);
+        this.onModalAction = this.onModalAction.bind(this);
         this.createPollRoute = this.createPollRoute.bind(this);
+        this.submitModal = this.submitModal.bind(this);
     }
 
-    public postMessage(channel: string, text: string, blocks: KnownBlock[], user?: string): Promise<WebAPICallResult> {
+    public postMessage(channel: string, text: string, blocks: KnownBlock[]): Promise<WebAPICallResult> {
         const msg: ChatPostMessageArguments = { channel, text, blocks };
-        if (user) {
-            msg.user = user;
-        } else {
-            msg.as_user = false;
-        }
         return this.wc.chat.postMessage(msg);
+    }
+
+    public async displayModal(channelId: string, triggerId: string): Promise<void> {
+        const modal = new PollModal(channelId);
+        const response = await this.wc.views.open({
+            trigger_id: triggerId,
+            view: modal.constructModalView(),
+        });
+        ModalMap.set((response as any).view.id, modal);
+        return;
+    }
+
+    public onModalAction(payload: any, res: (message: any) => Promise<unknown>): {text: string} {
+        const currentModal = ModalMap.get(payload.view.id);
+        const actionId = payload.actions[0].action_id;
+        // We don't do anything if viewID is invalid
+        if (!currentModal) return { text: "Modal not found!" };
+        if (actionId === "add_option") {
+            currentModal.addOption();
+            this.wc.views.update({
+                view_id: payload.view.id,
+                view: currentModal.constructModalView(),
+            });
+        }
+        return { text: "Modal input processed" };
+    }
+
+    public closeModal(viewID: string): void {
+        ModalMap.delete(viewID);
+    }
+
+    public submitModal(payload: any): { response_action: string} {
+        const modal = ModalMap.get(payload.view.id);
+        
+        if (!modal) return { response_action: "clear" };
+        const form_values = payload.view.state.values;
+        const poll_author = `<@${payload.user.id}>`;
+        const poll_options = PollModal.submissionToPollParams(form_values);
+        const poll = Poll.slashCreate(poll_author, poll_options);
+        this.postMessage(modal.getChannelId(), "A poll has been posted!", poll.getBlocks()).then(() => this.closeModal(payload.view.id)).catch((err) => console.error(err));
+
+        return { response_action: "clear" };
     }
 
     public onButtonAction(payload: any, res: (message: any) => Promise<unknown>): { text: string } {
@@ -79,13 +119,25 @@ export class Actions {
             return;
         }
 
-        // Create a new poll passing in the poll author and the other params
-        const poll = Poll.slashCreate(`<@${req.body.user_id}>`, req.body.text.replace("@channel", "").replace("@everyone", "").replace("@here", "").split("\n"));
+        // If the user just did /inorout we enter modal mode
+        const iniateModal = req.body.trim().length == 0;
+
         try {
-            await this.postMessage(req.body.channel_id, "A poll has been posted!", poll.getBlocks());
+            if (!iniateModal) {
+                // Create a new poll passing in the poll author and the other params
+                const poll = Poll.slashCreate(`<@${req.body.user_id}>`, req.body.text.replace("@channel", "").replace("@everyone", "").replace("@here", "").split("\n"));
+                await this.postMessage(req.body.channel_id, "A poll has been posted!", poll.getBlocks());
+            } else {
+                await this.displayModal(req.body.channel_id, req.body.trigger_id);
+            }
             res.send();
         } catch (err) {
-            res.send(this.handleActionException(err).text);
+            // Better handling of when the bot isn't invited to the channel
+            if (err.data.error === "not_in_channel") {
+                res.send("Bot not in channel please use /invite @inorout or ask a dev team member for help.");
+            } else {
+                res.send(this.handleActionException(err).text);
+            }
         }
     }
 

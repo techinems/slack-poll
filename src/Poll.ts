@@ -45,7 +45,7 @@ export class Poll {
                 actionBlockCount++;
             }
             // We set value to empty string so that it is always defined
-            const button: Button = { type: "button", value: " ", text: PollHelpers.buildTextElem(parameters[i]) };
+            const button: Button = PollHelpers.buildButton(parameters[i], " ");
             actionBlocks[actionBlockCount].elements.push(button);
         }
         // The various poll options

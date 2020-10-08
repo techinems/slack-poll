@@ -37,6 +37,10 @@ app.use("/slack/actions", slackInteractions.expressMiddleware());
 
 app.use(urlencoded({ extended: true }));
 
+slackInteractions.viewClosed({}, (payload) => actions.closeModal(payload.view.id));
+slackInteractions.viewSubmission({}, actions.submitModal);
+slackInteractions.action({ actionId: "add_option" }, actions.onModalAction);
+slackInteractions.action({ actionId: "modal_checkboxes" }, actions.onModalAction);
 slackInteractions.action({ type: Actions.BUTTON_ACTION }, actions.onButtonAction);
 slackInteractions.action({ type: Actions.STATIC_SELECT_ACTION }, actions.onStaticSelectAction);
 
