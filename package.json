@@ -1,6 +1,6 @@
 {
   "name": "slack-poll",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "description": "Databaseless Slack Polling",
   "main": "server.js",
   "scripts": {
