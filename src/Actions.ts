@@ -120,7 +120,7 @@ export class Actions {
         }
 
         // If the user just did /inorout we enter modal mode
-        const iniateModal = req.body.trim().length == 0;
+        const iniateModal = req.body.text.trim().length == 0;
 
         try {
             if (!iniateModal) {
