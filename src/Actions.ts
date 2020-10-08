@@ -51,7 +51,7 @@ export class Actions {
                 view: currentModal.constructModalView(),
             });
         }
-        return { text: "Action processed" };
+        return { text: "Modal input processed" };
     }
 
     public closeModal(viewID: string): void {
@@ -134,7 +134,7 @@ export class Actions {
         } catch (err) {
             // Better handling of when the bot isn't invited to the channel
             if (err.data.error === "not_in_channel") {
-                res.send("Bot must be invited to the channel before you can use it!");
+                res.send("Bot not in channel please use /invite @inorout or ask a dev team member for help.");
             } else {
                 res.send(this.handleActionException(err).text);
             }
