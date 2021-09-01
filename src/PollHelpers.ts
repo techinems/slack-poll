@@ -1,4 +1,4 @@
-import { Button, ContextBlock, InputBlock, Option, PlainTextElement, SectionBlock } from "@slack/types";
+import { Button, ContextBlock, InputBlock, PlainTextElement, PlainTextOption, SectionBlock } from "@slack/types";
 
 export class PollHelpers {
     public static appendIfMatching(optionArray: string[], keyword: string, appendText: string): string {
@@ -13,7 +13,7 @@ export class PollHelpers {
         return { type: "context", elements: [ { type: "mrkdwn", text: mrkdwnValue } ] };
     }
 
-    public static buildSelectOption(text: string, value: string): Option {
+    public static buildSelectOption(text: string, value: string): PlainTextOption {
         return { text: this.buildTextElem(text), value: value };
     }
 

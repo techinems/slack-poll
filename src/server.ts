@@ -4,6 +4,7 @@ import { urlencoded } from "body-parser";
 import { createMessageAdapter } from "@slack/interactive-messages";
 import { Actions } from "./Actions";
 import * as Sentry from "@sentry/node";
+import * as fs from "fs";
 
 // Load Environment variables
 dotenv.config();
@@ -15,9 +16,10 @@ if (!process.env.SLACK_ACCESS_TOKEN || !process.env.SLACK_SIGNING_SECRET) {
 
 // Configure Sentry exception logging
 if (process.env.SENTRY_DSN) {
+    const packageJson = JSON.parse(fs.readFileSync("./package.json").toString());
     const sentryConfig: Sentry.NodeOptions = {
         dsn: process.env.SENTRY_DSN,
-        release: `slack-poll@${require("../package.json").version}`
+        release: `slack-poll@${packageJson.version}`
     };
     if (process.env.ENVIRONMENT) sentryConfig.environment = process.env.ENVIRONMENT;
     Sentry.init(sentryConfig);

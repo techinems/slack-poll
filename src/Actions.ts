@@ -131,7 +131,7 @@ export class Actions {
                 await this.displayModal(req.body.channel_id, req.body.trigger_id);
             }
             res.send();
-        } catch (err) {
+        } catch (err: any) {
             // Better handling of when the bot isn't invited to the channel
             if (err.data.error === "not_in_channel") {
                 res.send("Bot not in channel please use /invite @inorout or ask a dev team member for help.");
