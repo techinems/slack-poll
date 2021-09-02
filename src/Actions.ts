@@ -65,7 +65,6 @@ export class Actions {
         const form_values = payload.view.state.values;
         const poll_author = `<@${payload.user.id}>`;
         const poll_options = PollModal.submissionToPollParams(form_values);
-        this.postMessage(modal.getChannelId(), JSON.stringify(poll_options, undefined, 2), []);
         const poll = Poll.slashCreate(poll_author, poll_options);
         this.postMessage(modal.getChannelId(), "A poll has been posted!", poll.getBlocks()).then(() => this.closeModal(payload.view.id)).catch((err) => console.error(err));
 
