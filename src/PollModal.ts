@@ -91,8 +91,11 @@ export class PollModal {
     // We've taken care of the checkboxes so we now remove that key
     delete submittedState.modal_actions;
 
+    poll_options.push(submittedState.bid_title.title.value);
+    delete submittedState.bid_title;
+
     // The way slack structures data in blockkit we need a double for loop
-    for (const section in submittedState) {
+    for (const section of submittedState.key().sort()) {
         for (const field in submittedState[section]) {
             poll_options.push(submittedState[section][field].value);
         }
