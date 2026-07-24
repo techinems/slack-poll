@@ -1,7 +1,6 @@
-import express from "express";
+import type { IncomingMessage, ServerResponse } from "http";
 import * as dotenv from "dotenv";
-import { urlencoded } from "body-parser";
-import { createMessageAdapter } from "@slack/interactive-messages";
+import { App, HTTPReceiver } from "@slack/bolt";
 import { Actions } from "./Actions";
 import * as Sentry from "@sentry/node";
 import * as fs from "fs";
@@ -11,7 +10,7 @@ dotenv.config();
 
 // Verify required env varables are set
 if (!process.env.SLACK_ACCESS_TOKEN || !process.env.SLACK_SIGNING_SECRET) {
-    throw "Environment variables not properly loaded!";
+    throw new Error("Environment variables not properly loaded!");
 }
 
 // Configure Sentry exception logging
@@ -25,28 +24,56 @@ if (process.env.SENTRY_DSN) {
     Sentry.init(sentryConfig);
 }
 
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
-// Intialize Express app
-const app = express();
-
-// Intialize Slack Web client for sending requests
+// Initialize the poll interaction handlers (holds a WebClient for the bot token)
 const actions = new Actions(process.env.SLACK_ACCESS_TOKEN);
 
-// Ensure messages come from slack
-const slackInteractions = createMessageAdapter(process.env.SLACK_SIGNING_SECRET);
-app.use("/slack/actions", slackInteractions.expressMiddleware());
+// Bolt receiver. Slash commands and interactivity both arrive on /slack/events
+// (Bolt's single endpoint), verified via the signing secret. A /health route is
+// added for container health checks.
+const receiver = new HTTPReceiver({
+    signingSecret: process.env.SLACK_SIGNING_SECRET,
+    customRoutes: [
+        {
+            path: "/health",
+            method: ["GET"],
+            handler: (_req: IncomingMessage, res: ServerResponse): void => {
+                res.writeHead(200);
+                res.end("ok");
+            },
+        },
+    ],
+});
 
-app.use(urlencoded({ extended: true }));
+const app = new App({
+    token: process.env.SLACK_ACCESS_TOKEN,
+    receiver,
+});
 
-slackInteractions.viewClosed({}, (payload) => actions.closeModal(payload.view.id));
-slackInteractions.viewSubmission({}, actions.submitModal);
-slackInteractions.action({ actionId: "add_option" }, actions.onModalAction);
-slackInteractions.action({ actionId: "modal_checkboxes" }, actions.onModalAction);
-slackInteractions.action({ type: Actions.BUTTON_ACTION }, actions.onButtonAction);
-slackInteractions.action({ type: Actions.STATIC_SELECT_ACTION }, actions.onStaticSelectAction);
+app.error(async (error): Promise<void> => {
+    Sentry.captureException(error);
+    console.error(error);
+});
 
-app.post("/slack/commands", actions.createPollRoute);
+// Slash command
+app.command("/inorout", (args) => actions.onSlashCommand(args));
 
-app.listen(PORT, () => console.log(`In Or Out server running on ${PORT}`));
+// Interactivity — matched by action_id:
+//   vote_<n>        poll vote buttons
+//   poll_options    the poll's reset/lock/move/delete select
+//   add_option      the modal "Add another option" button
+//   modal_checkboxes the modal anon/multiple checkboxes (no-op ack)
+app.action(/^vote_\d+$/, (args) => actions.onButtonAction(args));
+app.action("poll_options", (args) => actions.onStaticSelectAction(args));
+app.action("add_option", (args) => actions.onAddOption(args));
+app.action("modal_checkboxes", (args) => actions.onModalCheckboxes(args));
 
+// Modal submit / close
+app.view("poll_modal", (args) => actions.onModalSubmit(args));
+app.view({ callback_id: "poll_modal", type: "view_closed" }, (args) => actions.onModalClose(args));
+
+(async (): Promise<void> => {
+    await app.start(PORT);
+    console.log(`In Or Out server running on ${PORT}`);
+})();

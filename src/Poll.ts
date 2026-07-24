@@ -13,10 +13,9 @@ export class Poll {
     }
     static slashCreate(author: string, parameters: string[]): Poll {
         if (process.env.SENTRY_DSN) {
-            Sentry.configureScope(scope => {
-                scope.setUser({ username: author });
-                scope.setExtra("parameters", parameters);
-            });
+            // Sentry v8+ removed configureScope; set on the current scope directly.
+            Sentry.setUser({ username: author });
+            Sentry.setExtra("parameters", parameters);
         }
 
         let message: KnownBlock[] = [];
@@ -44,13 +43,16 @@ export class Poll {
                 actionBlocks.push(newActionBlock);
                 actionBlockCount++;
             }
-            // We set value to empty string so that it is always defined
-            const button: Button = PollHelpers.buildButton(parameters[i], " ");
+            // We set value to empty string so that it is always defined.
+            // Each vote button gets a stable, unique action_id so Bolt can route
+            // it (Bolt matches block actions by action_id, not element type).
+            const button: Button = PollHelpers.buildButton(parameters[i], " ", `vote_${i}`);
             actionBlocks[actionBlockCount].elements.push(button);
         }
         // The various poll options
         const selection: StaticSelect = {
             type: "static_select",
+            action_id: "poll_options",
             placeholder: PollHelpers.buildTextElem("Poll Options"),
             options: [
                 PollHelpers.buildSelectOption("Reset your vote", "reset"),

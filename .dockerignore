@@ -1,0 +1,12 @@
+node_modules/
+out/
+.git/
+.env
+test/
+scripts/
+.github/
+coverage/
+eslint.config.js
+jest.config.js
+README.md
+helpFile.md

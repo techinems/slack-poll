@@ -1,27 +1,22 @@
 import { Poll } from "./Poll";
 import { ChatPostMessageArguments, ChatUpdateArguments, WebAPICallResult, WebClient } from "@slack/web-api";
 import { KnownBlock } from "@slack/types";
-import { Request, Response } from "express";
 import * as Sentry from "@sentry/node";
 import { PollModal, ModalMap } from "./PollModal";
 
 const errorMsg = "An error occurred; please contact the administrators for assistance.";
 
+// This class holds all of the poll interaction logic. It was previously wired to
+// Slack's deprecated @slack/interactive-messages adapter; it is now driven by
+// Bolt listeners (see server.ts). Web API calls still go through a WebClient
+// constructed from the bot token, and all message updates go back to Slack via
+// Bolt's `respond` (response_url) — matching the original replace-the-message
+// behavior.
 export class Actions {
-    public static readonly BUTTON_ACTION = "button";
-    public static readonly STATIC_SELECT_ACTION = "static_select";
-
     private wc: WebClient;
 
     public constructor(slackAccessToken: string) {
         this.wc = new WebClient(slackAccessToken);
-
-        // These are called in server.ts without scoping
-        this.onButtonAction = this.onButtonAction.bind(this);
-        this.onStaticSelectAction = this.onStaticSelectAction.bind(this);
-        this.onModalAction = this.onModalAction.bind(this);
-        this.createPollRoute = this.createPollRoute.bind(this);
-        this.submitModal = this.submitModal.bind(this);
     }
 
     public postMessage(channel: string, text: string, blocks: KnownBlock[]): Promise<WebAPICallResult> {
@@ -36,159 +31,167 @@ export class Actions {
             view: modal.constructModalView(),
         });
         ModalMap.set((response as any).view.id, modal);
-        return;
     }
 
-    public onModalAction(payload: any, res: (message: any) => Promise<unknown>): {text: string} {
-        const currentModal = ModalMap.get(payload.view.id);
-        const actionId = payload.actions[0].action_id;
-        // We don't do anything if viewID is invalid
-        if (!currentModal) return { text: "Modal not found!" };
-        if (actionId === "add_option") {
-            currentModal.addOption();
-            this.wc.views.update({
-                view_id: payload.view.id,
-                view: currentModal.constructModalView(),
-            });
-        }
-        return { text: "Modal input processed" };
-    }
+    // Slash command: /inorout
+    public async onSlashCommand({ command, ack, respond }: any): Promise<void> {
+        await ack();
 
-    public closeModal(viewID: string): void {
-        ModalMap.delete(viewID);
-    }
-
-    public submitModal(payload: any): { response_action: string} {
-        const modal = ModalMap.get(payload.view.id);
-        
-        if (!modal) return { response_action: "clear" };
-        const form_values = payload.view.state.values;
-        const poll_author = `<@${payload.user.id}>`;
-        const poll_options = PollModal.submissionToPollParams(form_values);
-        const poll = Poll.slashCreate(poll_author, poll_options);
-        this.postMessage(modal.getChannelId(), "A poll has been posted!", poll.getBlocks()).then(() => this.closeModal(payload.view.id)).catch((err) => console.error(err));
-
-        return { response_action: "clear" };
-    }
-
-    public onButtonAction(payload: any, res: (message: any) => Promise<unknown>): { text: string } {
-        try {
-            const poll = new Poll(payload.message.blocks);
-            payload.actions[0].text.text = payload.actions[0].text.text.replace("&lt;","<")
-                .replace("&gt;",">").replace("&amp;","&");
-            poll.vote(payload.actions[0].text.text, payload.user.id);
-            payload.message.blocks = poll.getBlocks();
-            payload.message.text = "Vote changed!";
-            // We respond with the new payload
-            res(payload.message);
-            // In case it is being slow users will see this message
-            return { text: "Vote processing!" };
-        } catch(err) {
-            return this.handleActionException(err);
-        }
-    }
-
-    public onStaticSelectAction(payload: any, res: (message: any) => Promise<unknown>): { text: string } {
-        try {
-            const poll = new Poll(payload.message.blocks);
-            switch (payload.actions[0].selected_option.value) {
-                case "reset":
-                    this.onResetSelected(payload, poll);
-                    break;
-                case "bottom":
-                    this.onBottomSelected(payload, poll);
-                    break;
-                case "lock":
-                    this.onLockSelected(payload, poll);
-                    break;
-                case "delete":
-                    this.onDeleteSelected(payload, poll);
-                    break;
-            }
-            res(payload.message);
-            return { text: "Processing request!" };
-        } catch (err) {
-            return this.handleActionException(err);
-        }
-    }
-
-    public async createPollRoute(req: Request, res: Response): Promise<void> {
-        if (req.body.command !== "/inorout") {
-            console.error(`Unregistered command ${req.body.command}`);
-            res.send("Unhandled command");
-            return;
-        }
-
-        // If the user just did /inorout we enter modal mode
-        const iniateModal = req.body.text.trim().length == 0;
+        // If the user just did /inorout (no args) we enter modal mode
+        const initiateModal = command.text.trim().length == 0;
 
         try {
-            if (!iniateModal) {
+            if (!initiateModal) {
                 // Create a new poll passing in the poll author and the other params
-                const poll = Poll.slashCreate(`<@${req.body.user_id}>`, req.body.text.replace("@channel", "").replace("@everyone", "").replace("@here", "").split("\n"));
-                await this.postMessage(req.body.channel_id, "A poll has been posted!", poll.getBlocks());
+                const poll = Poll.slashCreate(
+                    `<@${command.user_id}>`,
+                    command.text.replace("@channel", "").replace("@everyone", "").replace("@here", "").split("\n")
+                );
+                await this.postMessage(command.channel_id, "A poll has been posted!", poll.getBlocks());
             } else {
-                await this.displayModal(req.body.channel_id, req.body.trigger_id);
+                await this.displayModal(command.channel_id, command.trigger_id);
             }
-            res.send();
         } catch (err: any) {
             // Better handling of when the bot isn't invited to the channel
-            if (err.data.error === "not_in_channel") {
-                res.send("Bot not in channel please use /invite @inorout or ask a dev team member for help.");
+            if (err && err.data && err.data.error === "not_in_channel") {
+                await respond("Bot not in channel please use /invite @inorout or ask a dev team member for help.");
             } else {
-                res.send(this.handleActionException(err).text);
+                Sentry.captureException(err);
+                console.error(err);
+                await respond(errorMsg);
             }
         }
     }
 
-    private onResetSelected(payload: any, poll: Poll): void {
-        payload.message.text = "Vote reset!";
-        if (poll.getLockedStatus()) {
-            this.wc.chat.postEphemeral({
-                channel: payload.channel.id,
-                text: "You cannot reset your vote after the poll has been locked.", user: payload.user.id
-            });
-        } else {
-            poll.resetVote(payload.user.id);
-            payload.message.blocks = poll.getBlocks();
+    // A poll vote button (action_id "vote_<n>") on a poll message.
+    public async onButtonAction({ ack, body, action, respond }: any): Promise<void> {
+        await ack();
+        try {
+            const poll = new Poll(body.message.blocks);
+            action.text.text = action.text.text.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&");
+            poll.vote(action.text.text, body.user.id);
+            await respond({ replace_original: true, text: "Vote changed!", blocks: poll.getBlocks() });
+        } catch (err) {
+            await this.respondException(respond, err);
         }
     }
 
-    private async onBottomSelected(payload: any, poll: Poll): Promise<void> {
-        payload.message.text = "Poll moved!";
-        payload.message.blocks = poll.getBlocks();
-        if (Actions.isPollAuthor(payload, poll)) {
-            await this.wc.chat.delete({ channel: payload.channel.id, ts: payload.message.ts })
-                .catch((err: any) => console.error(err));
+    // The modal "Add another option" button (action_id "add_option").
+    public async onAddOption({ ack, body }: any): Promise<void> {
+        await ack();
+        const currentModal = ModalMap.get(body.view.id);
+        // We don't do anything if viewID is invalid
+        if (!currentModal) return;
+        currentModal.addOption();
+        await this.wc.views.update({
+            view_id: body.view.id,
+            view: currentModal.constructModalView(),
+        });
+    }
+
+    // The modal "Anonymous / Multiple" checkboxes — nothing to do server-side,
+    // just acknowledge (the original handler was a no-op for this action too).
+    public async onModalCheckboxes({ ack }: any): Promise<void> {
+        await ack();
+    }
+
+    // The poll's "Poll Options" static select (reset / lock / move / delete).
+    public async onStaticSelectAction({ ack, body, action, respond }: any): Promise<void> {
+        await ack();
+        try {
+            const poll = new Poll(body.message.blocks);
+            switch (action.selected_option.value) {
+                case "reset":
+                    await this.onResetSelected(body, poll, respond);
+                    break;
+                case "bottom":
+                    await this.onBottomSelected(body, poll, respond);
+                    break;
+                case "lock":
+                    await this.onLockSelected(body, poll, respond);
+                    break;
+                case "delete":
+                    await this.onDeleteSelected(body, poll, respond);
+                    break;
+            }
+        } catch (err) {
+            await this.respondException(respond, err);
+        }
+    }
+
+    // Modal submitted — build and post the poll, then forget the modal.
+    public async onModalSubmit({ ack, body }: any): Promise<void> {
+        const modal = ModalMap.get(body.view.id);
+        // Closing/clearing the modal view is the acknowledgement
+        await ack({ response_action: "clear" });
+        if (!modal) return;
+
+        const form_values = body.view.state.values;
+        const poll_author = `<@${body.user.id}>`;
+        const poll_options = PollModal.submissionToPollParams(form_values);
+        const poll = Poll.slashCreate(poll_author, poll_options);
+        try {
+            await this.postMessage(modal.getChannelId(), "A poll has been posted!", poll.getBlocks());
+        } catch (err) {
+            console.error(err);
+        } finally {
+            ModalMap.delete(body.view.id);
+        }
+    }
+
+    // Modal dismissed without submitting.
+    public async onModalClose({ ack, body }: any): Promise<void> {
+        await ack();
+        ModalMap.delete(body.view.id);
+    }
+
+    private async onResetSelected(body: any, poll: Poll, respond: any): Promise<void> {
+        if (poll.getLockedStatus()) {
+            await this.wc.chat.postEphemeral({
+                channel: body.channel.id,
+                text: "You cannot reset your vote after the poll has been locked.",
+                user: body.user.id,
+            });
+            await respond({ replace_original: true, text: "Vote reset!", blocks: body.message.blocks });
+        } else {
+            poll.resetVote(body.user.id);
+            await respond({ replace_original: true, text: "Vote reset!", blocks: poll.getBlocks() });
+        }
+    }
+
+    private async onBottomSelected(body: any, poll: Poll, respond: any): Promise<void> {
+        const blocks = poll.getBlocks();
+        if (Actions.isPollAuthor(body, poll)) {
+            await this.wc.chat.delete({ channel: body.channel.id, ts: body.message.ts }).catch((err: any) => console.error(err));
             // Must be artificially slowed down to prevent the poll from glitching out on Slack's end
-            setTimeout(() => this.postMessage(payload.channel.id, "Poll Moved!", []).then((res: any) => {
+            setTimeout(() => this.postMessage(body.channel.id, "Poll Moved!", []).then((res: any) => {
                 const msg: ChatUpdateArguments = {
-                    channel: payload.channel.id, text: payload.message.text,
-                    ts: res.ts, blocks: payload.message.blocks
+                    channel: body.channel.id, text: "Poll moved!",
+                    ts: res.ts, blocks,
                 };
                 this.wc.chat.update(msg);
-            }), 300);
+            }).catch((err: any) => console.error(err)), 300);
         } else {
-            this.postEphemeralOnlyAuthor("move", "poll", payload.channel.id, payload.user.id);
+            await this.postEphemeralOnlyAuthor("move", "poll", body.channel.id, body.user.id);
+            await respond({ replace_original: true, text: "Poll moved!", blocks });
         }
     }
 
-    private onLockSelected(payload: any, poll: Poll): void {
-        payload.message.text = "Poll locked!";
-        if (Actions.isPollAuthor(payload, poll)) {
+    private async onLockSelected(body: any, poll: Poll, respond: any): Promise<void> {
+        if (Actions.isPollAuthor(body, poll)) {
             poll.lockPoll();
-            payload.message.blocks = poll.getBlocks();
+            await respond({ replace_original: true, text: "Poll locked!", blocks: poll.getBlocks() });
         } else {
-            this.postEphemeralOnlyAuthor("lock", "poll", payload.channel.id, payload.user.id);
+            await this.postEphemeralOnlyAuthor("lock", "poll", body.channel.id, body.user.id);
+            await respond({ replace_original: true, text: "Poll locked!", blocks: body.message.blocks });
         }
     }
 
-    private onDeleteSelected(payload: any, poll: Poll): void {
-        if (Actions.isPollAuthor(payload, poll)) {
-            payload.message.text = "This poll has been deleted.";
-            payload.message.blocks = undefined;
+    private async onDeleteSelected(body: any, poll: Poll, respond: any): Promise<void> {
+        if (Actions.isPollAuthor(body, poll)) {
+            await respond({ replace_original: true, text: "This poll has been deleted.", blocks: [] });
         } else {
-            this.postEphemeralOnlyAuthor("delete", "poll", payload.channel.id, payload.user.id);
+            await this.postEphemeralOnlyAuthor("delete", "poll", body.channel.id, body.user.id);
         }
     }
 
@@ -196,13 +199,14 @@ export class Actions {
         return this.wc.chat.postEphemeral({ channel, text: `Only the poll author may ${verb} the ${object}.`, user });
     }
 
-    private static isPollAuthor(payload: any, poll: Poll): boolean {
-        return `<@${payload.user.id}>` === poll.getAuthor();
+    private static isPollAuthor(body: any, poll: Poll): boolean {
+        return `<@${body.user.id}>` === poll.getAuthor();
     }
 
-    private handleActionException(err: any): { text: string } {
+    private async respondException(respond: any, err: any): Promise<void> {
         Sentry.captureException(err);
         console.error(err);
-        return { text: errorMsg };
+        // Ephemeral so a processing error doesn't wipe out the poll message.
+        await respond({ replace_original: false, response_type: "ephemeral", text: errorMsg });
     }
 }
