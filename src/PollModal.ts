@@ -69,6 +69,7 @@ export class PollModal {
     return {
       title: this.title,
       type: "modal",
+      callback_id: "poll_modal",
       blocks: this.blocks,
       submit: this.submit,
       notify_on_close: true,
